@@ -15,28 +15,35 @@ public enum DecisionEngine {
         }
         guard isValidTargetChars else { return nil }
 
-        let checker = NSSpellChecker.shared
-        guard let sourceLang = language(for: conversion.source, available: checker.availableLanguages),
-              let targetLang = language(for: conversion.target, available: checker.availableLanguages) else {
-            return nil
+        let targetLower = conversion.output.lowercased()
+
+        // 1. High-frequency vocabulary fast-path:
+        // Common words (e.g. "and" [שמג], "what" ['ישא], "how" [ים'], "the", "you", "shalom")
+        // take priority over morphological ambiguities.
+        if HighFrequencyVocabulary.isHighFrequency(targetLower, language: conversion.target) {
+            return conversion
         }
 
-        // Check if the original word was already correct in the source language
+        // 2. Custom dictionary check:
+        if CustomDictionary.contains(conversion.output) {
+            return conversion
+        }
+
+        // 3. Resilient NSSpellChecker verification:
+        let checker = NSSpellChecker.shared
+        let sourceLang = language(for: conversion.source, available: checker.availableLanguages)
+        let targetLang = language(for: conversion.target, available: checker.availableLanguages)
+
+        // Check if the source word was already correct
         let sourceIsCorrect = isCorrect(lower, language: sourceLang, checker: checker)
-        
-        // If the word contains punctuation characters that act as Hebrew letters (e.g. "t,v" or "ch,"),
-        // it cannot be a real English word even if NSSpellChecker somehow didn't catch it.
         let containsHebrewPunctuationKeys = word.contains(where: { ",.;'".contains($0) })
 
         if sourceIsCorrect && !containsHebrewPunctuationKeys {
             return nil
         }
 
-        // Verify that the converted word is recognized in the target language
-        let targetLower = conversion.output.lowercased()
-        let targetIsCorrect = CustomDictionary.contains(conversion.output)
-            || isCorrect(targetLower, language: targetLang, checker: checker)
-
+        // Check if the converted word is correct in the target language
+        let targetIsCorrect = isCorrect(targetLower, language: targetLang, checker: checker)
         guard targetIsCorrect else { return nil }
 
         return conversion
@@ -45,7 +52,7 @@ public enum DecisionEngine {
     /// Evaluates if an entire line/phrase typed in the wrong layout should be repaired
     public static func phraseCandidate(for phrase: String) -> Conversion? {
         let trimmed = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 6, trimmed.count <= 120 else { return nil }
+        guard trimmed.count >= 4, trimmed.count <= 120 else { return nil }
 
         let tokens = trimmed.split(separator: " ").map(String.init)
         guard tokens.count >= 2 else { return nil }
@@ -64,8 +71,8 @@ public enum DecisionEngine {
             }
         }
 
-        // At least 2 words and more than half the phrase must be clearly wrong-layout tokens
-        guard repairCount >= 2, Double(repairCount) / Double(tokens.count) >= 0.5 else {
+        // At least 1 clear repair and more than 40% of the phrase should match
+        guard repairCount >= 1, Double(repairCount) / Double(tokens.count) >= 0.4 else {
             return nil
         }
 
@@ -78,13 +85,12 @@ public enum DecisionEngine {
         )
     }
 
-    private static func language(for layout: KeyboardLanguage, available: [String]) -> String? {
+    private static func language(for layout: KeyboardLanguage, available: [String]) -> String {
         switch layout {
         case .english:
-            return available.first { $0.lowercased().hasPrefix("en") }
+            return available.first { $0.lowercased().hasPrefix("en") } ?? "en_US"
         case .hebrew:
-            // macOS supports Hebrew under "he" or legacy ISO code "iw"
-            return available.first { $0.lowercased().hasPrefix("he") || $0.lowercased().hasPrefix("iw") }
+            return available.first { $0.lowercased().hasPrefix("he") || $0.lowercased().hasPrefix("iw") } ?? "he_IL"
         }
     }
 

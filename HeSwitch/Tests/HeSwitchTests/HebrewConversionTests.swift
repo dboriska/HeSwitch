@@ -27,6 +27,17 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(LayoutConversion.convert("טקד")?.output, "yes")
         XCTAssertEqual(LayoutConversion.convert("בםגק")?.output, "code")
         XCTAssertEqual(LayoutConversion.convert("ין")?.output, "hi")
+        XCTAssertEqual(LayoutConversion.convert("שמג")?.output, "and")
+        XCTAssertEqual(LayoutConversion.convert("'ישא")?.output, "what")
+        XCTAssertEqual(LayoutConversion.convert("ים'")?.output, "how")
+    }
+
+    func testHighFrequencyVocabulary() {
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("and", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("what", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("how", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("שלום", language: .hebrew))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("בוקר", language: .hebrew))
     }
 
     func testHebrewAcronymsAndAbbreviations() {

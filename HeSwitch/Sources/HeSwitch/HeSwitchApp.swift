@@ -179,22 +179,46 @@ public final class HeSwitchModel: ObservableObject {
         revision &+= 1
         doubleTap.keyPressed()
 
-        guard automaticRepair, !event.isARepeat else { return }
-
-        let expectedRevision = revision
-        let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
-
-        // 1. Immediate check on word delimiters (Space 49, Return 36, Enter 76)
-        if [49, 36, 76].contains(Int(event.keyCode)) {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .milliseconds(35))
-                guard let self, self.revision == expectedRevision,
-                      NSWorkspace.shared.frontmostApplication?.processIdentifier == processID else { return }
-                self.repairAutomatically(in: processID)
-            }
+        // Reset keystroke buffer on modifier shortcuts (Cmd+C, Cmd+V, etc.)
+        if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) {
+            KeystrokeBuffer.shared.clear()
+            return
         }
 
-        // 2. Pause check (~350ms) for completed word or phrase
+        // Backspace
+        if event.keyCode == 51 {
+            KeystrokeBuffer.shared.backspace()
+            return
+        }
+
+        // Navigation keys (Escape, Arrows)
+        if [53, 123, 124, 125, 126].contains(event.keyCode) {
+            KeystrokeBuffer.shared.clear()
+            return
+        }
+
+        let isSpace = event.keyCode == 49
+        let isReturn = [36, 76].contains(Int(event.keyCode))
+        let delimiter = isSpace ? " " : (isReturn ? "\n" : nil)
+
+        if let delimiter {
+            let completedFromBuffer = KeystrokeBuffer.shared.onDelimiter(delimiter)
+            if automaticRepair && !event.isARepeat {
+                let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+                repairAutomatically(in: processID, completedWordFromBuffer: completedFromBuffer, delimiter: delimiter)
+            }
+            return
+        }
+
+        if let characters = event.characters, !characters.isEmpty {
+            KeystrokeBuffer.shared.append(characters)
+        }
+
+        guard automaticRepair, !event.isARepeat else { return }
+
+        // Pause check (~350ms) for multi-word phrases or completed words
+        let expectedRevision = revision
+        let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
             guard let self, self.revision == expectedRevision,
@@ -211,19 +235,33 @@ public final class HeSwitchModel: ObservableObject {
     }
 
     private func repairManually() {
-        guard let snapshot = FocusedText.read() else { return }
-        let selected = snapshot.selection.length > 0
-        let input = selected ? snapshot.selectedText : WordBoundary.precedingWord(in: snapshot.prefix, allowDelimiter: false)
-
-        guard let input, let conversion = LayoutConversion.convert(input), snapshot.isStillCurrent() else { return }
-
-        if selected {
-            _ = snapshot.replaceDirectly(range: NSRange(location: snapshot.selection.location, length: snapshot.selection.length), with: conversion.output)
-        } else {
-            let range = NSRange(location: snapshot.selection.location - input.utf16.count, length: input.utf16.count)
-            if !snapshot.replaceDirectly(range: range, with: conversion.output) {
-                KeyboardReplacement.replace(backspaces: input.utf16.count, with: conversion.output)
+        let snapshot = FocusedText.read()
+        let selected = snapshot.map { $0.selection.length > 0 } ?? false
+        let input: String? = {
+            if let snapshot {
+                return selected ? snapshot.selectedText : WordBoundary.precedingWord(in: snapshot.prefix, allowDelimiter: false)
             }
+            let bufferWord = KeystrokeBuffer.shared.currentWord
+            return bufferWord.isEmpty ? nil : bufferWord
+        }()
+
+        guard let input, let conversion = LayoutConversion.convert(input) else { return }
+
+        var replaced = false
+        if let snapshot, snapshot.isStillCurrent() {
+            if selected {
+                replaced = snapshot.replaceDirectly(
+                    range: NSRange(location: snapshot.selection.location, length: snapshot.selection.length),
+                    with: conversion.output
+                )
+            } else {
+                let range = NSRange(location: snapshot.selection.location - input.utf16.count, length: input.utf16.count)
+                replaced = snapshot.replaceDirectly(range: range, with: conversion.output)
+            }
+        }
+
+        if !replaced {
+            KeyboardReplacement.replace(backspaces: input.utf16.count, with: conversion.output)
         }
 
         keyboard.select(conversion.target)
@@ -232,21 +270,44 @@ public final class HeSwitchModel: ObservableObject {
         if playSound { soundPlayer.play() }
     }
 
-    private func repairAutomatically(in processID: pid_t?) {
-        guard let processID, !ApplicationExclusions.contains(bundleID: NSRunningApplication(processIdentifier: processID)?.bundleIdentifier),
-              let snapshot = FocusedText.read(), snapshot.processID == processID,
-              snapshot.selection.length == 0,
-              let delimiter = snapshot.prefix.last, WordBoundary.isCompletionDelimiter(delimiter),
-              let word = WordBoundary.precedingWord(in: snapshot.prefix, allowDelimiter: true),
-              let conversion = DecisionEngine.candidate(for: word),
-              snapshot.selection.location >= word.utf16.count + 1 else { return }
+    private func repairAutomatically(in processID: pid_t?, completedWordFromBuffer: String?, delimiter: String) {
+        guard let processID, !ApplicationExclusions.contains(bundleID: NSRunningApplication(processIdentifier: processID)?.bundleIdentifier) else { return }
 
-        let range = NSRange(location: snapshot.selection.location - word.utf16.count - 1, length: word.utf16.count)
-        guard snapshot.replaceDirectly(range: range, with: conversion.output) else { return }
+        // 1. Preferred path: Accessible text field (TextEdit, Safari, Notes, Mail, etc.)
+        if let snapshot = FocusedText.read(), snapshot.processID == processID, snapshot.selection.length == 0 {
+            let candidateWord = WordBoundary.precedingWord(in: snapshot.prefix, allowDelimiter: true) ?? completedWordFromBuffer
+            guard let word = candidateWord, let conversion = DecisionEngine.candidate(for: word) else { return }
 
+            let targetRange = NSRange(location: max(0, snapshot.selection.location - word.utf16.count - delimiter.utf16.count), length: word.utf16.count)
+
+            // Try direct memory replacement
+            if snapshot.replaceDirectly(range: targetRange, with: conversion.output) {
+                keyboard.select(conversion.target)
+                currentLayout = keyboard.currentLayout
+                statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
+                if playSound { soundPlayer.play() }
+                return
+            }
+
+            // Fallback for fields where replaceDirectly fails (e.g. Electron apps, WebViews)
+            KeyboardReplacement.replace(backspaces: word.utf16.count + delimiter.utf16.count, with: conversion.output + delimiter)
+            keyboard.select(conversion.target)
+            currentLayout = keyboard.currentLayout
+            statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
+            if playSound { soundPlayer.play() }
+            return
+        }
+
+        // 2. Terminal / CLI / Non-accessible apps path (Terminal, iTerm2, Alacritty, Warp)
+        // Here FocusedText.read() is nil, but KeystrokeBuffer has the exact typed word!
+        guard let word = completedWordFromBuffer, !word.isEmpty,
+              let conversion = DecisionEngine.candidate(for: word) else { return }
+
+        // In terminals, send backspaces for the word + delimiter, then type the converted word + delimiter
+        KeyboardReplacement.replace(backspaces: word.utf16.count + delimiter.utf16.count, with: conversion.output + delimiter)
         keyboard.select(conversion.target)
         currentLayout = keyboard.currentLayout
-        statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
+        statusText = "CLI Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
         if playSound { soundPlayer.play() }
     }
 
@@ -255,7 +316,7 @@ public final class HeSwitchModel: ObservableObject {
               let snapshot = FocusedText.read(), snapshot.processID == processID,
               snapshot.selection.length == 0 else { return }
 
-        // Try phrase repair first
+        // Try whole-phrase repair first
         if let lastLine = snapshot.prefix.split(separator: "\n").last,
            let conversion = DecisionEngine.phraseCandidate(for: String(lastLine)),
            snapshot.selection.location >= lastLine.utf16.count {
