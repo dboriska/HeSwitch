@@ -1,0 +1,38 @@
+name: Build and Package HeSwitch
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build macOS App
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Unit Tests
+        run: |
+          cd HeSwitch
+          swift test
+
+      - name: Package HeSwitch.app
+        run: |
+          cd HeSwitch
+          bash Scripts/package-app.sh
+
+      - name: Create Zip Archive
+        run: |
+          cd HeSwitch/dist
+          zip -r HeSwitch-macOS.zip HeSwitch.app
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HeSwitch-macOS
+          path: HeSwitch/dist/HeSwitch-macOS.zip
