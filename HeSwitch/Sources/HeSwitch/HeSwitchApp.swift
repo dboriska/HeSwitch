@@ -100,22 +100,24 @@ public final class HeSwitchModel: ObservableObject {
         started = true
 
         keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            Task { @MainActor in self?.handleKey(event) }
+            Task { @MainActor [weak self] in self?.handleKey(event) }
         }
 
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            Task { @MainActor in self?.handleFlags(event) }
+            Task { @MainActor [weak self] in self?.handleFlags(event) }
         }
 
         layoutTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.currentLayout = self?.keyboard.currentLayout
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentLayout = self.keyboard.currentLayout
             }
         }
 
         accessTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.refreshPermissions()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.refreshPermissions()
             }
         }
     }
@@ -185,18 +187,18 @@ public final class HeSwitchModel: ObservableObject {
 
         // 1. Immediate check on word delimiters (Space 49, Return 36, Enter 76)
         if [49, 36, 76].contains(Int(event.keyCode)) {
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(35))
-                guard self.revision == expectedRevision,
+                guard let self, self.revision == expectedRevision,
                       NSWorkspace.shared.frontmostApplication?.processIdentifier == processID else { return }
                 self.repairAutomatically(in: processID)
             }
         }
 
         // 2. Pause check (~350ms) for completed word or phrase
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
-            guard self.revision == expectedRevision,
+            guard let self, self.revision == expectedRevision,
                   NSWorkspace.shared.frontmostApplication?.processIdentifier == processID else { return }
             self.repairPhraseOrCompletedWord(in: processID)
         }
