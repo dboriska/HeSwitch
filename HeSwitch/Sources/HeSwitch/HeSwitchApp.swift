@@ -6,7 +6,6 @@ import SwiftUI
 @main
 struct HeSwitchApp: App {
     @StateObject private var model = HeSwitchModel.shared
-    @Environment(\.openSettings) private var openSettings
 
     var body: some Scene {
         MenuBarExtra {
@@ -32,7 +31,7 @@ struct HeSwitchApp: App {
 
                 Button("Settings…") {
                     NSApp.activate(ignoringOtherApps: true)
-                    openSettings()
+                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 }
 
                 Button("Quit HeSwitch") {
