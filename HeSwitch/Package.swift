@@ -13,12 +13,9 @@ let package = Package(
         )
     ],
     targets: [
-        .target(
+        .executableTarget(
             name: "HeSwitch",
-            path: "Sources/HeSwitch",
-            resources: [
-                .process("Resources")
-            ]
+            path: "Sources/HeSwitch"
         ),
         .testTarget(
             name: "HeSwitchTests",
