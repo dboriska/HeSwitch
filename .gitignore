@@ -1,0 +1,8 @@
+.venv/
+.build/
+dist/
+Ne-To/
+keyboop/
+.DS_Store
+*.xcodeproj
+*.xcworkspace
