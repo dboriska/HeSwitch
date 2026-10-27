@@ -105,9 +105,44 @@ def convert_layout(text: str) -> Optional[ConversionResult]:
     if not text:
         return None
 
+    # Double-quote / Gershayim prefix for Shift + W typed in Hebrew layout:
+    # e.g. "״ישא" -> "What", "\"ישא" -> "What", "״hat" -> "What", "\"hat" -> "What",
+    #      "״יקמ" -> "When", "״יקרק" -> "Where", "״יט" -> "Why", "״ים" -> "Who"
+    if (text.startswith('"') or text.startswith('״')) and len(text) > 1:
+        tail = text[1:]
+        candidate_en = ["W"]
+        has_conv = False
+        for ch in tail:
+            if ch.isascii() and ch.isalpha():
+                candidate_en.append(ch.lower())
+                has_conv = True
+            elif ch in "׳’'":
+                candidate_en.append("w")
+                has_conv = True
+            elif ch in HE_TO_EN:
+                candidate_en.append(HE_TO_EN[ch])
+                has_conv = True
+            else:
+                candidate_en.append(ch)
+        cand_str = "".join(candidate_en)
+        if has_conv and all(c.isascii() and (c.isalpha() or c in "'’") for c in cand_str):
+            return ConversionResult(
+                input_text=text,
+                output_text=cand_str,
+                source_lang="HE",
+                target_lang="EN"
+            )
+
     # Mixed Geresh check: e.g. "׳hat" -> "what", "ho׳" -> "how", "to׳er" -> "tower"
     if ("׳" in text or "’" in text or "'" in text) and text.lower() not in COMMON_CONTRACTIONS:
-        replaced = "".join('w' if c in "׳’'" else c for c in text)
+        replaced_chars = []
+        for idx, c in enumerate(text):
+            if c in "׳’'":
+                next_is_upper = idx < len(text) - 1 and text[idx + 1].isupper()
+                replaced_chars.append('W' if idx == 0 and next_is_upper else 'w')
+            else:
+                replaced_chars.append(c)
+        replaced = "".join(replaced_chars)
         if replaced != text and replaced.isalpha() and all(ord(c) < 128 for c in replaced):
             return ConversionResult(
                 input_text=text,
@@ -121,7 +156,15 @@ def convert_layout(text: str) -> Optional[ConversionResult]:
 
     # Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello")
     if en_count > 0 and he_count > 0:
-        candidate_en = "".join(c if (c.isascii() and c.isalpha()) else HE_TO_EN.get(c, c) for c in text)
+        candidate_chars = []
+        for idx, c in enumerate(text):
+            if c.isascii() and c.isalpha():
+                candidate_chars.append(c)
+            elif c in '"״':
+                candidate_chars.append('W' if idx == 0 else 'w')
+            else:
+                candidate_chars.append(HE_TO_EN.get(c, c))
+        candidate_en = "".join(candidate_chars)
         if candidate_en != text and all(c.isascii() and (c.isalpha() or c in "'’") for c in candidate_en):
             return ConversionResult(
                 input_text=text,

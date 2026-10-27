@@ -49,8 +49,10 @@ HIGH_FREQ_EN = {
     "word", "words", "week", "win", "wait", "watch", "walk", "wide", "wind", "winter",
     "wish", "woman", "women", "wrong", "web", "warn", "wear", "weather", "welcome",
     "west", "western", "whose", "whole", "worth", "few", "show", "slow", "flow",
-    "grow", "draw", "view", "window", "between", "power", "tower", "allow", "follow",
-    "below", "own", "down", "town", "code", "test", "hello", "world", "true", "false"
+    "grow", "draw", "view", "window", "windows", "between", "power", "tower", "allow", "follow",
+    "below", "own", "down", "town", "code", "test", "hello", "world", "true", "false",
+    "hi", "hey", "yes", "ok", "bye", "is", "am", "are", "been", "has", "had", "did",
+    "does", "got", "morning", "night", "thanks", "please", "google", "israel"
 }
 
 HIGH_FREQ_HE = {
@@ -60,7 +62,9 @@ HIGH_FREQ_HE = {
     "הוא", "היא", "הם", "הן", "זה", "זאת", "אלה", "כל", "רק", "עוד",
     "יום", "לילה", "שבוע", "חודש", "שנה", "בית", "ספר", "דרך", "מקום", "זמן",
     "צריך", "יכול", "היה", "היו", "יהיה", "רואה", "שומע", "הולך", "בא", "יוצא",
-    "צה\"ל", "ת\"א", "חו\"ל", "ארה\"ב", "מנכ\"ל", "עו\"ד", "דו\"ח", "בד\"כ", "צ'יפס", "צ׳יפס"
+    "צה\"ל", "ת\"א", "חו\"ל", "ארה\"ב", "מנכ\"ל", "עו\"ד", "דו\"ח", "בד\"כ", "צ'יפס", "צ׳יפס",
+    "צה״ל", "ת״א", "חו״ל", "ארה״ב", "מנכ״ל", "עו״ד", "דו״ח", "בד״כ",
+    "ח\"כ", "ח״כ", "ש\"ח", "ש״ח", "תנ\"ך", "תנ״ך", "רוה\"מ", "רוה״מ"
 }
 
 COMMON_CONTRACTIONS = {
@@ -92,9 +96,44 @@ def convert_layout(text: str) -> Optional[ConversionResult]:
     if not text:
         return None
 
+    # Double-quote / Gershayim prefix for Shift + W typed in Hebrew layout:
+    # e.g. "״ישא" -> "What", "\"ישא" -> "What", "״hat" -> "What", "\"hat" -> "What",
+    #      "״יקמ" -> "When", "״יקרק" -> "Where", "״יט" -> "Why", "״ים" -> "Who"
+    if (text.startswith('"') or text.startswith('״')) and len(text) > 1:
+        tail = text[1:]
+        candidate_en = ["W"]
+        has_conv = False
+        for ch in tail:
+            if ch.isascii() and ch.isalpha():
+                candidate_en.append(ch.lower())
+                has_conv = True
+            elif ch in "׳’'":
+                candidate_en.append("w")
+                has_conv = True
+            elif ch in HE_TO_EN:
+                candidate_en.append(HE_TO_EN[ch])
+                has_conv = True
+            else:
+                candidate_en.append(ch)
+        cand_str = "".join(candidate_en)
+        if has_conv and all(c.isascii() and (c.isalpha() or c in "'’") for c in cand_str):
+            return ConversionResult(
+                input_text=text,
+                output_text=cand_str,
+                source_lang="HE",
+                target_lang="EN"
+            )
+
     # Mixed Geresh check: e.g. "׳hat" -> "what", "ho׳" -> "how", "to׳er" -> "tower"
     if ("׳" in text or "’" in text or "'" in text) and text.lower() not in COMMON_CONTRACTIONS:
-        replaced = "".join('w' if c in "׳’'" else c for c in text)
+        replaced_chars = []
+        for idx, c in enumerate(text):
+            if c in "׳’'":
+                next_is_upper = idx < len(text) - 1 and text[idx + 1].isupper()
+                replaced_chars.append('W' if idx == 0 and next_is_upper else 'w')
+            else:
+                replaced_chars.append(c)
+        replaced = "".join(replaced_chars)
         if replaced != text and replaced.isalpha() and all(ord(c) < 128 for c in replaced):
             return ConversionResult(
                 input_text=text,
@@ -108,7 +147,15 @@ def convert_layout(text: str) -> Optional[ConversionResult]:
 
     # Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello")
     if en_count > 0 and he_count > 0:
-        candidate_en = "".join(c if (c.isascii() and c.isalpha()) else HE_TO_EN.get(c, c) for c in text)
+        candidate_chars = []
+        for idx, c in enumerate(text):
+            if c.isascii() and c.isalpha():
+                candidate_chars.append(c)
+            elif c in '"״':
+                candidate_chars.append('W' if idx == 0 else 'w')
+            else:
+                candidate_chars.append(HE_TO_EN.get(c, c))
+        candidate_en = "".join(candidate_chars)
         if candidate_en != text and all(c.isascii() and (c.isalpha() or c in "'’") for c in candidate_en):
             return ConversionResult(
                 input_text=text,
@@ -242,15 +289,63 @@ def generate_test_corpus() -> List[TestCase]:
     for intended, typed in mixed_w:
         cases.append(TestCase("Mixed Geresh 'W'", intended, typed, True, intended))
 
-    # Category 2b: Capitalized English typed in Hebrew layout (Shift + letter producing Latin capital)
+    # Category 2b: Capitalized English typed in Hebrew layout (Shift + letter producing Latin capital, or Shift + W producing '"' / '״')
     cap_cases = [
         ("What", "Wישא"),
+        ("What", "״ישא"),
+        ("What", "\"ישא"),
+        ("What", "״hat"),
+        ("What", "\"hat"),
+        ("When", "Wיקמ"),
+        ("When", "״יקמ"),
+        ("When", "\"יקמ"),
+        ("When", "״hen"),
+        ("Where", "Wיקרק"),
+        ("Where", "״יקרק"),
+        ("Where", "״here"),
+        ("Why", "Wיט"),
+        ("Why", "״יט"),
+        ("Why", "״hy"),
+        ("Who", "Wים"),
+        ("Who", "״ים"),
+        ("Who", "״ho"),
+        ("World", "Wםרךג"),
+        ("World", "״םרךג"),
+        ("World", "״orld"),
+        ("Will", "Wןךך"),
+        ("Will", "״ןךך"),
+        ("With", "Wןאי"),
+        ("With", "״ןאי"),
+        ("Week", "Wקקל"),
+        ("Week", "״קקל"),
+        ("Week", "\"קקל"),
+        ("Week", "״eek"),
+        ("Water", "Wשאקר"),
+        ("Water", "״שאקר"),
+        ("Water", "\"שאקר"),
+        ("Water", "״ater"),
+        ("Windows", "Wןמגם׳ד"),
+        ("Windows", "״ןמגם׳ד"),
+        ("Windows", "\"ןמגם׳ד"),
+        ("Windows", "״indows"),
+        ("Web", "Wקנ"),
+        ("Web", "״קנ"),
+        ("Web", "\"קנ"),
+        ("Web", "״eb"),
         ("Hello", "Hקךךם"),
         ("Please", "Pךקשדק"),
         ("How", "Hם׳"),
         ("Thanks", "Tישמלד"),
         ("Israel", "Iדרשקך"),
         ("Google", "Gםםעךק"),
+        ("You", "Yםו"),
+        ("And", "Aמג"),
+        ("Hi", "Hן"),
+        ("Is", "Iד"),
+        ("Yes", "Yקד"),
+        ("Ok", "Oל"),
+        ("Code", "Cםגק"),
+        ("Test", "Tקדא"),
     ]
     for intended, typed in cap_cases:
         cases.append(TestCase("Capitalized English in Hebrew Layout", intended, typed, True, intended))

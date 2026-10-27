@@ -55,7 +55,43 @@ public enum LayoutConversion {
     public static func convert(_ text: String) -> Conversion? {
         guard !text.isEmpty else { return nil }
 
-        // 1. Fast-path for English words typed with Hebrew Geresh or apostrophe for 'w':
+        // 1. Double-quote / Gershayim prefix for capitalized 'W' words typed in Hebrew layout:
+        // On macOS standard Hebrew keyboard, Shift + W produces '״' (U+05F4) or '"' (U+0022).
+        // Hebrew words never begin with Gershayim or quotes.
+        // e.g. "״ישא" -> "What", "\"ישא" -> "What", "״hat" -> "What", "\"hat" -> "What",
+        //      "״יקמ" -> "When", "״יקרק" -> "Where", "״יט" -> "Why", "״ים" -> "Who"
+        if text.hasPrefix("\"") || text.hasPrefix("״") {
+            let tail = text.dropFirst()
+            if !tail.isEmpty {
+                var candidateEn = "W"
+                candidateEn.reserveCapacity(text.count)
+                var hasConvertibleChar = false
+                for ch in tail {
+                    if ch.isASCII && ch.isLetter {
+                        candidateEn.append(ch.lowercased())
+                        hasConvertibleChar = true
+                    } else if ch == "׳" || ch == "’" || ch == "'" {
+                        candidateEn.append("w")
+                        hasConvertibleChar = true
+                    } else if let mapped = heToEn[ch] {
+                        candidateEn.append(mapped)
+                        hasConvertibleChar = true
+                    } else {
+                        candidateEn.append(ch)
+                    }
+                }
+                if hasConvertibleChar && candidateEn.allSatisfy({ $0.isASCII && ($0.isLetter || "'’".contains($0)) }) {
+                    return Conversion(
+                        input: text,
+                        output: candidateEn,
+                        source: .hebrew,
+                        target: .english
+                    )
+                }
+            }
+        }
+
+        // 2. Fast-path for English words typed with Hebrew Geresh or apostrophe for 'w':
         // e.g. "׳hat" -> "what", "ho׳" -> "how", "׳orld" -> "world", "׳hen" -> "when", "to׳er" -> "tower"
         if text.contains("׳") || text.contains("’") || text.contains("'") {
             let lower = text.lowercased()
@@ -66,7 +102,17 @@ public enum LayoutConversion {
                 "hadn't", "couldn't", "shouldn't", "wouldn't"
             ]
             if !commonContractions.contains(lower) {
-                let replaced = String(text.map { ($0 == "׳" || $0 == "’" || $0 == "'") ? "w" : $0 })
+                var replaced = ""
+                replaced.reserveCapacity(text.count)
+                for (idx, ch) in text.enumerated() {
+                    if ch == "׳" || ch == "’" || ch == "'" {
+                        // Capitalize if typed at the beginning of an otherwise capitalized word (e.g. "׳Hat" -> "What")
+                        let nextIsUpper = idx < text.count - 1 && text[text.index(text.startIndex, offsetBy: idx + 1)].isUppercase
+                        replaced.append(idx == 0 && nextIsUpper ? "W" : "w")
+                    } else {
+                        replaced.append(ch)
+                    }
+                }
                 if replaced != text && replaced.allSatisfy({ $0.isASCII && $0.isLetter }) {
                     return Conversion(
                         input: text,
@@ -89,14 +135,16 @@ public enum LayoutConversion {
             }
         }
 
-        // 2. Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello", "Pךקשדק" -> "Please")
-        // Or English prefix with Hebrew keys: "ho׳" -> "how"
+        // 3. Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello", "Pךקשדק" -> "Please")
+        // Or English prefix with Hebrew keys: "ho׳" -> "how", "to"er" -> "tower"
         if enLetterCount > 0 && heLetterCount > 0 {
             var candidateEn = ""
             candidateEn.reserveCapacity(text.count)
-            for ch in text {
+            for (idx, ch) in text.enumerated() {
                 if ch.isASCII && ch.isLetter {
                     candidateEn.append(ch)
+                } else if ch == "\"" || ch == "״" {
+                    candidateEn.append(idx == 0 ? "W" : "w")
                 } else if let mapped = heToEn[ch] {
                     candidateEn.append(mapped)
                 } else {

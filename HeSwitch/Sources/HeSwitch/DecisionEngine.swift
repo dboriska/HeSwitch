@@ -12,17 +12,17 @@ public enum DecisionEngine {
               let conversion = LayoutConversion.convert(word),
               !ExcludedWords.contains(conversion.output) else { return nil }
 
-        // Converted word must be mostly letters or legitimate Hebrew punctuation (geresh, gershayim)
+        // Converted word must be mostly letters or legitimate Hebrew punctuation (geresh, gershayim, hyphen)
         let isValidTargetChars = conversion.output.allSatisfy { char in
-            char.isLetter || "\"'״׳".contains(char)
+            char.isLetter || "\"'״׳-".contains(char)
         }
         guard isValidTargetChars else { return nil }
 
         let targetLower = conversion.output.lowercased()
 
         // Check if capitalized English transcoding is disabled
-        let isMixedScript = word.unicodeScalars.contains { (0x0041...0x005A).contains($0.value) || (0x0061...0x007A).contains($0.value) } &&
-                            word.unicodeScalars.contains { (0x0590...0x05FF).contains($0.value) || $0.value == 0x05F3 }
+        let isMixedScript = (word.unicodeScalars.contains { (0x0041...0x005A).contains($0.value) || (0x0061...0x007A).contains($0.value) } || word.hasPrefix("\"") || word.hasPrefix("״")) &&
+                            word.unicodeScalars.contains { (0x0590...0x05FF).contains($0.value) || $0.value == 0x05F3 || $0.value == 0x05F4 }
         if isMixedScript && !HeSwitchModel.shared.convertCapitalizedEnglish {
             return nil
         }
@@ -57,7 +57,9 @@ public enum DecisionEngine {
         }
 
         // 5. Check if the converted word is correct in the target language
-        let targetIsCorrect = isCorrect(targetLower, language: targetLang, checker: checker)
+        // (Checks both lowercased target and original case to properly accept capitalized proper nouns like Israel, Google)
+        let targetIsCorrect = isCorrect(targetLower, language: targetLang, checker: checker) ||
+                              isCorrect(conversion.output, language: targetLang, checker: checker)
         guard targetIsCorrect else { return nil }
 
         return conversion

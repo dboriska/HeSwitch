@@ -20,10 +20,21 @@ public enum HighFrequencyVocabulary {
         "word", "words", "week", "win", "wait", "watch", "walk", "wide", "wind", "winter",
         "wish", "woman", "women", "wrong", "web", "warn", "wear", "weather", "welcome",
         "west", "western", "whose", "whole", "worth", "few", "show", "slow", "flow",
-        "grow", "draw", "view", "window", "between", "power", "tower", "allow", "follow",
-        "below", "own", "down", "town",
+        "grow", "draw", "view", "window", "windows", "between", "power", "tower", "allow", "follow",
+        "below", "own", "down", "town", "worker", "working", "works", "write", "writer",
+        "writing", "written", "wrote", "workflow", "workspace", "wrapper", "wonder", "wonderful",
+        "warm", "warning", "website", "webpage", "widget", "wallet", "waste", "weight",
+        "whatever", "whenever", "wherever", "whether", "willing", "winner", "winning",
+        "wireless", "wisdom", "withdraw", "witness", "worry", "worried", "worse", "worst",
+        "worthwhile", "wound", "wrap", "wreck", "wrist",
+        // Common conversational & capitalized words:
+        "hi", "hey", "hello", "yes", "ok", "bye", "is", "am", "are", "been", "has", "had",
+        "did", "does", "got", "morning", "night", "thanks", "please", "google", "israel",
+        "apple", "microsoft", "monday", "tuesday", "wednesday", "thursday", "friday",
+        "saturday", "sunday", "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december", "english", "hebrew",
         // Common verbs & developer keywords:
-        "add", "are", "app", "ask", "all", "key", "pay", "set", "put", "run",
+        "add", "app", "ask", "key", "pay", "set", "put", "run",
         "log", "fix", "bug", "dev", "prod", "api", "url", "id", "cmd", "dir",
         "save", "load", "init", "info", "edit", "list", "item", "menu", "icon",
         "port", "host", "link", "path", "send", "auth", "type", "call", "sync",
@@ -36,11 +47,10 @@ public enum HighFrequencyVocabulary {
         "md", "ts", "js", "py", "sh", "rs", "sql", "css", "xml", "yml", "yaml",
         "json", "env", "bin", "src", "pkg", "txt", "doc", "pdf", "png", "jpg", "svg",
         // Code / Technical standard vocabulary:
-        "code", "test", "hello", "world", "true", "false", "null", "func", "file", "open",
-        "close", "read", "write", "print", "data", "text", "name", "user", "pass", "help",
+        "code", "test", "world", "true", "false", "null", "func", "file", "open",
+        "close", "read", "print", "data", "text", "name", "user", "pass", "help",
         "git", "branch", "commit", "push", "pull", "status", "checkout", "merge", "diff",
-        "sudo", "brew", "curl", "bash", "zsh", "node", "npm", "echo", "make", "find",
-        "please", "thanks", "google", "israel", "home"
+        "sudo", "brew", "curl", "bash", "zsh", "node", "npm", "echo", "find", "home"
     ]
 
     public static let hebrewWords: Set<String> = [
@@ -50,7 +60,9 @@ public enum HighFrequencyVocabulary {
         "הוא", "היא", "הם", "הן", "זה", "זאת", "אלה", "כל", "רק", "עוד",
         "יום", "לילה", "שבוע", "חודש", "שנה", "בית", "ספר", "דרך", "מקום", "זמן",
         "צריך", "יכול", "היה", "היו", "יהיה", "רואה", "שומע", "הולך", "בא", "יוצא",
-        "צה\"ל", "ת\"א", "חו\"ל", "ארה\"ב", "מנכ\"ל", "עו\"ד", "דו\"ח", "בד\"כ", "צ'יפס"
+        "צה\"ל", "ת\"א", "חו\"ל", "ארה\"ב", "מנכ\"ל", "עו\"ד", "דו\"ח", "בד\"כ", "צ'יפס",
+        "צה״ל", "ת״א", "חו״ל", "ארה״ב", "מנכ״ל", "עו״ד", "דו״ח", "בד״כ", "צ׳יפס",
+        "ח\"כ", "ח״כ", "ש\"ח", "ש״ח", "תנ\"ך", "תנ״ך", "רוה\"מ", "רוה״מ"
     ]
 
     public static func isHighFrequency(_ word: String, language: KeyboardLanguage) -> Bool {
