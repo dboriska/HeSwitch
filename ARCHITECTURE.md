@@ -284,6 +284,10 @@ curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh |
   - **Removed session blacklisting (`sessionIgnoredWords`)**: Pressing Backspace by mistake or to delete trailing characters no longer disables transcoding for that word in the future.
   - **Natural Backspace Passthrough**: Restored standard non-destructive Backspace behavior so normal editing is never hijacked.
   - **Universal Terminal & Accessible Extension Support**: CLI / Terminal keystroke buffer now splits file extensions via `WordBoundary.extractFileExtension`, enabling `cat README.צג ` ➔ `cat README.md ` across all environments.
+- **`v1.0.7` (Capitalized English Transcoding, Smart Backspace & Selection Transcoder):**
+  - **Capitalized English Words on Hebrew Layout**: Converts words starting with Shift / uppercase Latin (`Wישא` ➔ `What`, `Hקךךם` ➔ `Hello`, `Pךקשדק` ➔ `Please`, `Hם׳` ➔ `How`, `Tישמלד` ➔ `Thanks`), preserving capitalization.
+  - **Smart Backspace (Option A)**: 1-Tap instant revert on auto-repair without any session blacklist. Words are never permanently blocked.
+  - **In-Place Selection Transcoder (Option 1 - `Cmd + Shift + X`)**: Highlight any sentence or paragraph in any macOS app (or Menu Bar item) to transcode between Hebrew and English in-place, preserving whitespace, punctuation, and layout.
 
 ---
 
@@ -293,8 +297,8 @@ Analysis of reference applications (**Punto Switcher**, **Caramba Switcher**, **
 
 | Feature | Reference Source | Status | Purpose & Mechanism |
 | :--- | :--- | :---: | :--- |
-| **1. Manual Layout Inverter (`Double-Tap Shift`)** | Punto, Keyboop | **Active** | Double-tapping Shift (or customizable shortcut) inverts the previous word/selection cleanly without corrupting typing or blacklisting words. |
-| **2. Selection Converter (`Cmd + Shift + X`)** | LangOver, Ne-To | Planned (Tier 1) | Select any paragraph or sentence, press shortcut to invert language in-place. |
+| **1. Smart Backspace (`Option A`)** | Punto, Caramba | **Implemented in v1.0.7** | 1-Tap instant revert immediately after auto-repair with zero session blacklisting. |
+| **2. Selection Converter (`Cmd + Shift + X`)** | LangOver, Ne-To | **Implemented in v1.0.7** | Select any paragraph or sentence, press `⌘⇧X` to invert language in-place (with universal clipboard fallback). |
 | **3. Trackpad Haptic Feedback** | Ne-To | Planned (Tier 1) | Subtle `NSHapticFeedbackManager` tactile tap on trackpad when layout flips silently. |
 | **4. Spotlight / URL Bar Autocomplete Guard** | Keyboop | Planned (Tier 1) | Check `kAXSelectedTextAttribute` so backspace doesn't delete active autocompletions in Chrome/Safari/Spotlight. |
 | **5. Instant `Caps Lock` Toggle** | Caramba | Planned (Tier 2) | Tap `Caps Lock` for zero-lag language toggle without macOS HUD delay (holding 0.5s preserves uppercase lock). |

@@ -84,12 +84,36 @@ public enum LayoutConversion {
         for scalar in text.unicodeScalars {
             if (0x0041...0x005A).contains(scalar.value) || (0x0061...0x007A).contains(scalar.value) {
                 enLetterCount += 1
-            } else if (0x0590...0x05FF).contains(scalar.value) {
+            } else if (0x0590...0x05FF).contains(scalar.value) || scalar.value == 0x05F3 || scalar.value == 0x05F4 {
                 heLetterCount += 1
             }
         }
 
-        // Cannot reliably convert mixed-script words
+        // 2. Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello", "Pךקשדק" -> "Please")
+        // Or English prefix with Hebrew keys: "ho׳" -> "how"
+        if enLetterCount > 0 && heLetterCount > 0 {
+            var candidateEn = ""
+            candidateEn.reserveCapacity(text.count)
+            for ch in text {
+                if ch.isASCII && ch.isLetter {
+                    candidateEn.append(ch)
+                } else if let mapped = heToEn[ch] {
+                    candidateEn.append(mapped)
+                } else {
+                    candidateEn.append(ch)
+                }
+            }
+            if candidateEn != text && candidateEn.allSatisfy({ $0.isASCII && ($0.isLetter || "'’".contains($0)) }) {
+                return Conversion(
+                    input: text,
+                    output: candidateEn,
+                    source: .hebrew,
+                    target: .english
+                )
+            }
+        }
+
+        // Cannot reliably convert other mixed-script words
         guard (enLetterCount > 0 && heLetterCount == 0) || (heLetterCount > 0 && enLetterCount == 0) else {
             return nil
         }
@@ -136,6 +160,58 @@ public enum LayoutConversion {
             output: converted,
             source: source,
             target: source.opposite
+        )
+    }
+
+    /// Converts a multi-word phrase, sentence, or selection between Hebrew and English layouts.
+    /// Preserves whitespace, line breaks, numbers, formatting, and punctuation.
+    public static func convertTextOrSelection(_ text: String) -> Conversion? {
+        guard !text.isEmpty else { return nil }
+
+        var enLetterCount = 0
+        var heLetterCount = 0
+
+        for scalar in text.unicodeScalars {
+            if (0x0041...0x005A).contains(scalar.value) || (0x0061...0x007A).contains(scalar.value) {
+                enLetterCount += 1
+            } else if (0x0590...0x05FF).contains(scalar.value) || scalar.value == 0x05F3 || scalar.value == 0x05F4 {
+                heLetterCount += 1
+            }
+        }
+
+        guard enLetterCount > 0 || heLetterCount > 0 else { return nil }
+
+        let source: KeyboardLanguage = heLetterCount >= enLetterCount ? .hebrew : .english
+        let target = source.opposite
+
+        var converted = ""
+        converted.reserveCapacity(text.count)
+
+        for ch in text {
+            if source == .english {
+                if ch.isASCII && ch.isLetter {
+                    converted.append(enToHe[ch] ?? ch)
+                } else if let mapped = enToHe[ch], "`[];',./".contains(ch) {
+                    converted.append(mapped)
+                } else {
+                    converted.append(ch)
+                }
+            } else {
+                if let mapped = heToEn[ch] {
+                    converted.append(mapped)
+                } else {
+                    converted.append(ch)
+                }
+            }
+        }
+
+        guard converted != text else { return nil }
+
+        return Conversion(
+            input: text,
+            output: converted,
+            source: source,
+            target: target
         )
     }
 

@@ -104,7 +104,18 @@ def convert_layout(text: str) -> Optional[ConversionResult]:
             )
 
     en_count = sum(1 for c in text if c.isascii() and c.isalpha())
-    he_count = sum(1 for c in text if is_hebrew_char(c))
+    he_count = sum(1 for c in text if is_hebrew_char(c) or c in "׳״")
+
+    # Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello")
+    if en_count > 0 and he_count > 0:
+        candidate_en = "".join(c if (c.isascii() and c.isalpha()) else HE_TO_EN.get(c, c) for c in text)
+        if candidate_en != text and all(c.isascii() and (c.isalpha() or c in "'’") for c in candidate_en):
+            return ConversionResult(
+                input_text=text,
+                output_text=candidate_en,
+                source_lang="HE",
+                target_lang="EN"
+            )
 
     if (en_count > 0 and he_count > 0) or (en_count == 0 and he_count == 0):
         return None
@@ -230,6 +241,19 @@ def generate_test_corpus() -> List[TestCase]:
     ]
     for intended, typed in mixed_w:
         cases.append(TestCase("Mixed Geresh 'W'", intended, typed, True, intended))
+
+    # Category 2b: Capitalized English typed in Hebrew layout (Shift + letter producing Latin capital)
+    cap_cases = [
+        ("What", "Wישא"),
+        ("Hello", "Hקךךם"),
+        ("Please", "Pךקשדק"),
+        ("How", "Hם׳"),
+        ("Thanks", "Tישמלד"),
+        ("Israel", "Iדרשקך"),
+        ("Google", "Gםםעךק"),
+    ]
+    for intended, typed in cap_cases:
+        cases.append(TestCase("Capitalized English in Hebrew Layout", intended, typed, True, intended))
 
     # Category 3: Hebrew words mistyped on physical English keyboard layout
     he_sample = [

@@ -54,6 +54,25 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(LayoutConversion.convert("to׳er")?.output, "tower")
     }
 
+    func testCapitalizedEnglishTypedInHebrewLayout() {
+        // Words typed starting with Shift (uppercase Latin) followed by Hebrew letters:
+        XCTAssertEqual(LayoutConversion.convert("Wישא")?.output, "What")
+        XCTAssertEqual(LayoutConversion.convert("Hקךךם")?.output, "Hello")
+        XCTAssertEqual(LayoutConversion.convert("Pךקשדק")?.output, "Please")
+        XCTAssertEqual(LayoutConversion.convert("Hם׳")?.output, "How")
+        XCTAssertEqual(LayoutConversion.convert("Tישמלד")?.output, "Thanks")
+        XCTAssertEqual(LayoutConversion.convert("Iדרשקך")?.output, "Israel")
+        XCTAssertEqual(LayoutConversion.convert("Gםםעךק")?.output, "Google")
+    }
+
+    func testSelectionAndTranscriptConversions() {
+        // Multi-word / sentence selection conversions (Option 1: Cmd + Shift + X)
+        XCTAssertEqual(LayoutConversion.convertTextOrSelection("akuo nv bang")?.output, "שלום מה נשמע")
+        XCTAssertEqual(LayoutConversion.convertTextOrSelection("שלום מה נשמע")?.output, "akuo nv bang")
+        XCTAssertEqual(LayoutConversion.convertTextOrSelection("יקךךםת ים׳ שרק טםו?")?.output, "hello, how are you?")
+        XCTAssertEqual(LayoutConversion.convertTextOrSelection("Line 1: akuo\nLine 2: ckg")?.output, "ךןמק 1: שלום\nךןמק 2: בלע")
+    }
+
     func testHighFrequencyVocabulary() {
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("and", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("add", language: .english))

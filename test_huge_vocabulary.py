@@ -117,7 +117,18 @@ def convert_layout(text: str) -> Optional[ConversionResult]:
             )
 
     en_count = sum(1 for c in text if c.isascii() and c.isalpha())
-    he_count = sum(1 for c in text if is_hebrew_char(c))
+    he_count = sum(1 for c in text if is_hebrew_char(c) or c in "׳״")
+
+    # Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello")
+    if en_count > 0 and he_count > 0:
+        candidate_en = "".join(c if (c.isascii() and c.isalpha()) else HE_TO_EN.get(c, c) for c in text)
+        if candidate_en != text and all(c.isascii() and (c.isalpha() or c in "'’") for c in candidate_en):
+            return ConversionResult(
+                input_text=text,
+                output_text=candidate_en,
+                source_lang="HE",
+                target_lang="EN"
+            )
 
     if (en_count > 0 and he_count > 0) or (en_count == 0 and he_count == 0):
         return None

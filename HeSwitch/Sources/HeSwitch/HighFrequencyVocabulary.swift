@@ -39,7 +39,8 @@ public enum HighFrequencyVocabulary {
         "code", "test", "hello", "world", "true", "false", "null", "func", "file", "open",
         "close", "read", "write", "print", "data", "text", "name", "user", "pass", "help",
         "git", "branch", "commit", "push", "pull", "status", "checkout", "merge", "diff",
-        "sudo", "brew", "curl", "bash", "zsh", "node", "npm", "echo", "make", "find"
+        "sudo", "brew", "curl", "bash", "zsh", "node", "npm", "echo", "make", "find",
+        "please", "thanks", "google", "israel", "home"
     ]
 
     public static let hebrewWords: Set<String> = [

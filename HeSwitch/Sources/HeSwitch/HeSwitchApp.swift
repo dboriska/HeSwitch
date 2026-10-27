@@ -3,6 +3,26 @@ import ApplicationServices
 import ServiceManagement
 import SwiftUI
 
+public struct AutoRepairRecord {
+    public let originalInput: String
+    public let convertedOutput: String
+    public let delimiter: String
+    public let originalLayout: KeyboardLanguage
+    public let targetLayout: KeyboardLanguage
+    public let timestamp: Date
+    public let processID: pid_t?
+
+    public init(originalInput: String, convertedOutput: String, delimiter: String, originalLayout: KeyboardLanguage, targetLayout: KeyboardLanguage, timestamp: Date, processID: pid_t?) {
+        self.originalInput = originalInput
+        self.convertedOutput = convertedOutput
+        self.delimiter = delimiter
+        self.originalLayout = originalLayout
+        self.targetLayout = targetLayout
+        self.timestamp = timestamp
+        self.processID = processID
+    }
+}
+
 @main
 struct HeSwitchApp: App {
     @StateObject private var model = HeSwitchModel.shared
@@ -38,6 +58,10 @@ struct HeSwitchApp: App {
                 ))
 
                 Divider()
+
+                Button("Transcode Selection (⌘⇧X)") {
+                    model.transcodeSelection()
+                }
 
                 Button("Settings…") {
                     NSApp.activate(ignoringOtherApps: true)
@@ -94,6 +118,11 @@ public final class HeSwitchModel: ObservableObject {
     private var doubleTap = DoubleTapDetector()
     private var revision = 0
     private var started = false
+
+    // Smart Backspace (Option A: 1-Tap Revert, No Session Blacklist) state
+    private var lastAutoRepair: AutoRepairRecord?
+    private var keystrokesSinceRepair = 0
+    public private(set) var temporarilySuppressedWord: String?
 
     private init() {
         automaticRepair = UserDefaults.standard.object(forKey: "automaticRepair") as? Bool ?? true
@@ -237,16 +266,38 @@ public final class HeSwitchModel: ObservableObject {
         revision &+= 1
         doubleTap.keyPressed()
 
+        // In-Place Selection Transcoder shortcut: Cmd + Shift + X (Option 1)
+        if event.modifierFlags.contains(.command) && event.modifierFlags.contains(.shift) {
+            if event.keyCode == 7 || event.charactersIgnoringModifiers?.lowercased() == "x" {
+                transcodeSelection()
+                return
+            }
+        }
+
         // Reset keystroke buffer on modifier shortcuts (Cmd+C, Cmd+V, etc.)
         if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) {
             KeystrokeBuffer.shared.clear()
             return
         }
 
-        // Backspace key: update keystroke buffer naturally without hijacking or blacklisting
+        // Backspace key: Option A (1-Tap Revert, No Session Blacklist)
         if event.keyCode == 51 {
+            if let repair = lastAutoRepair,
+               keystrokesSinceRepair == 0,
+               Date().timeIntervalSince(repair.timestamp) < 2.0 {
+                undoLastAutoRepair(repair)
+                return
+            }
             KeystrokeBuffer.shared.backspace()
             return
+        }
+
+        // Count non-modifier keys typed after auto-repair to bound undo window
+        if !event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.control) {
+            keystrokesSinceRepair += 1
+            if keystrokesSinceRepair > 1 {
+                lastAutoRepair = nil
+            }
         }
 
         // Navigation keys (Escape, Arrows)
@@ -260,6 +311,7 @@ public final class HeSwitchModel: ObservableObject {
         let delimiter = isSpace ? " " : (isReturn ? "\n" : nil)
 
         if let delimiter {
+            temporarilySuppressedWord = nil // clear suppression as soon as user finishes word
             let completedFromBuffer = KeystrokeBuffer.shared.onDelimiter(delimiter)
             if automaticRepair && !event.isARepeat {
                 let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -344,6 +396,17 @@ public final class HeSwitchModel: ObservableObject {
                 currentLayout = keyboard.currentLayout
                 statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
                 if playSound { soundPlayer.play() }
+
+                self.lastAutoRepair = AutoRepairRecord(
+                    originalInput: word,
+                    convertedOutput: conversion.output,
+                    delimiter: delimiter,
+                    originalLayout: conversion.source,
+                    targetLayout: conversion.target,
+                    timestamp: Date(),
+                    processID: processID
+                )
+                self.keystrokesSinceRepair = 0
                 return
             }
 
@@ -353,6 +416,17 @@ public final class HeSwitchModel: ObservableObject {
             currentLayout = keyboard.currentLayout
             statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
             if playSound { soundPlayer.play() }
+
+            self.lastAutoRepair = AutoRepairRecord(
+                originalInput: word,
+                convertedOutput: conversion.output,
+                delimiter: delimiter,
+                originalLayout: conversion.source,
+                targetLayout: conversion.target,
+                timestamp: Date(),
+                processID: processID
+            )
+            self.keystrokesSinceRepair = 0
             return
         }
 
@@ -367,6 +441,95 @@ public final class HeSwitchModel: ObservableObject {
         currentLayout = keyboard.currentLayout
         statusText = "CLI Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
         if playSound { soundPlayer.play() }
+
+        self.lastAutoRepair = AutoRepairRecord(
+            originalInput: word,
+            convertedOutput: conversion.output,
+            delimiter: delimiter,
+            originalLayout: conversion.source,
+            targetLayout: conversion.target,
+            timestamp: Date(),
+            processID: processID
+        )
+        self.keystrokesSinceRepair = 0
+    }
+
+    /// Reverts the most recent automatic repair and switches layout back (Smart Backspace Option A)
+    private func undoLastAutoRepair(_ repair: AutoRepairRecord) {
+        lastAutoRepair = nil
+        // Only suppress immediate re-trigger on this exact occurrence until next delimiter.
+        // DO NOT add to any session blacklist!
+        temporarilySuppressedWord = repair.originalInput.lowercased()
+
+        let processID = repair.processID
+        var reverted = false
+
+        if let snapshot = FocusedText.read(), snapshot.processID == processID {
+            let combined = repair.convertedOutput + repair.delimiter
+            if snapshot.prefix.hasSuffix(combined) {
+                let range = NSRange(location: max(0, snapshot.selection.location - combined.utf16.count), length: combined.utf16.count)
+                reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput)
+            } else if snapshot.prefix.hasSuffix(repair.convertedOutput) {
+                let range = NSRange(location: max(0, snapshot.selection.location - repair.convertedOutput.utf16.count), length: repair.convertedOutput.utf16.count)
+                reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput)
+            }
+        }
+
+        if !reverted {
+            KeyboardReplacement.replace(backspaces: repair.convertedOutput.utf16.count + repair.delimiter.utf16.count, with: repair.originalInput)
+        }
+
+        keyboard.select(repair.originalLayout)
+        currentLayout = keyboard.currentLayout
+        statusText = "Reverted: \(repair.convertedOutput) → \(repair.originalInput)"
+        if playSound { soundPlayer.play() }
+    }
+
+    /// In-place selection and clipboard transcoder (Option 1: Cmd + Shift + X)
+    public func transcodeSelection() {
+        // 1. Direct Accessibility API
+        if let snapshot = FocusedText.read(), snapshot.selection.length > 0,
+           let conversion = LayoutConversion.convertTextOrSelection(snapshot.selectedText) {
+            let range = NSRange(location: snapshot.selection.location, length: snapshot.selection.length)
+            if snapshot.replaceDirectly(range: range, with: conversion.output) {
+                keyboard.select(conversion.target)
+                currentLayout = keyboard.currentLayout
+                statusText = "Selection: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
+                if playSound { soundPlayer.play() }
+                return
+            }
+        }
+
+        // 2. Universal fallback (Cmd+C -> Transcode -> Cmd+V)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let pasteboard = NSPasteboard.general
+            let previousChangeCount = pasteboard.changeCount
+
+            // Synthesize Cmd+C
+            KeyboardReplacement.postKey(0x08, flags: .maskCommand)
+
+            try? await Task.sleep(for: .milliseconds(70))
+
+            guard pasteboard.changeCount != previousChangeCount,
+                  let selectedString = pasteboard.string(forType: .string),
+                  !selectedString.isEmpty,
+                  let conversion = LayoutConversion.convertTextOrSelection(selectedString) else {
+                return
+            }
+
+            // Put transcoded string on pasteboard (Smart Copy)
+            pasteboard.clearContents()
+            pasteboard.setString(conversion.output, forType: .string)
+
+            // Synthesize Cmd+V to paste in-place
+            KeyboardReplacement.postKey(0x09, flags: .maskCommand)
+
+            self.keyboard.select(conversion.target)
+            self.currentLayout = self.keyboard.currentLayout
+            self.statusText = "Selection: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
+            if self.playSound { self.soundPlayer.play() }
+        }
     }
 
     private func repairPhraseOrCompletedWord(in processID: pid_t?) {
