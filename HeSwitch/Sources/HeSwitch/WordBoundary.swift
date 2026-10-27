@@ -56,6 +56,26 @@ public enum WordBoundary {
 
         guard !trimmed.isEmpty, trimmed.count <= 64 else { return nil }
 
+        // Check for file extension with different script:
+        // e.g. "README.צג" where base is English ("README") and extension is Hebrew ("צג")
+        // In this case, only the extension "צג" should be repaired to "md"!
+        if let dotIndex = trimmed.lastIndex(of: ".") {
+            let ext = String(trimmed[trimmed.index(after: dotIndex)...])
+            let base = String(trimmed[..<dotIndex])
+            if !ext.isEmpty && ext.count <= 5 && !base.isEmpty {
+                let extIsHebrew = ext.allSatisfy { LayoutConversion.isHebrew($0) }
+                let baseIsEnglish = base.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
+                if extIsHebrew && baseIsEnglish {
+                    return ext
+                }
+                let extIsEnglish = ext.allSatisfy { $0.isASCII && $0.isLetter }
+                let baseIsHebrew = base.allSatisfy { LayoutConversion.isHebrew($0) }
+                if extIsEnglish && baseIsHebrew {
+                    return ext
+                }
+            }
+        }
+
         // Ensure word is not part of a URL, email, or filesystem path
         if characters.count > trimmed.count {
             let precedingChar = characters[characters.count - trimmed.count - 1]

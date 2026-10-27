@@ -72,13 +72,16 @@ On macOS Hebrew layout:
   - A dedicated pre-pass detects English words typed with Hebrew Geresh (e.g. `׳hat` ➔ `what`, `ho׳` ➔ `how`, `to׳er` ➔ `tower`) and converts them to valid English candidates.
 
 ### C. Morphological & Archaic Root Collisions:
-Standard dictionary validation (`NSSpellChecker`) struggles with two Hebrew phenomena:
+Standard dictionary validation (`NSSpellChecker`) struggles with Hebrew lexical overlaps:
 1. **Hebrew Prefix Morphology False-Positives (e.g. `שמג` ➔ `and`):**
    Hebrew morphology allows prefixes `ש-` (that), `מ-` (from), `ב-` (in), `ל-` (to), `כ-` (as), `ו-` (and), `ה-` (the) to attach to words. `NSSpellChecker` often accepts arbitrary letter combinations (such as `שמג` as `ש` + `מ` + `ג`).
 2. **Archaic Biblical/Literary Roots (e.g. `שגג` ➔ `add`):**
    `שגג` (*shagag*) is a legitimate biblical Hebrew verb meaning *"to err"* (the root of *שגגה*). When a user typed `add` on Hebrew layout (`שגג`), `NSSpellChecker` reported `שגג` as valid Hebrew, suppressing the conversion!
+3. **Common Technical Abbreviations & File Extensions (e.g. `צג` ➔ `md`):**
+   `צג` (*tsag*) in modern Hebrew means *"display / monitor / screen"*. When a user types `צג` or a markdown filename like `README.צג`, `NSSpellChecker` reports `צג` as valid Hebrew.
+   - **Resolution:** `md` is prioritized in `HighFrequencyVocabulary`, and `WordBoundary.precedingWord` cleanly isolates file extensions so `README.צג` ➔ `README.md` and standalone `צג` ➔ `md`.
 - **Resolution (`HighFrequencyVocabulary.swift`):**
-  A curated high-frequency priority lexicon in English (`and`, `add`, `what`, `how`, `when`, `where`, `world`, `git`, `code`, `app`, `dev`, `run`, `log`, etc.) bypasses morphological ambiguity, ensuring common English words always convert immediately.
+  A curated high-frequency priority lexicon in English (`and`, `add`, `md`, `what`, `how`, `when`, `where`, `world`, `git`, `code`, `app`, `dev`, `run`, `log`, etc.) bypasses morphological ambiguity, ensuring common English words and developer keywords always convert immediately.
 
 ### D. Ambiguous Collisions (Protected Words)
 A small set of high-frequency words exist legally in both English and Hebrew:
@@ -254,15 +257,45 @@ curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh |
 
 ---
 
-## 9. Roadmap & Future Improvements
+## 9. Release History & Milestones
 
-1. **`DynamicKeymap` Support (`UCKeyTranslate`):**
-   - Query `TISCopyCurrentKeyboardLayoutInputSource()` and call Carbon's `UCKeyTranslate` to dynamically map keycodes to characters, supporting **Hebrew - QWERTY** (phonetic layout) and custom user layouts.
-2. **`UndoLearner` Heuristic:**
-   - If an automatic replacement triggers and the user immediately hits `Backspace`, revert the replacement, switch the input source back, and add the word to a temporary session ignore list.
-3. **Spotlight / Browser Address Bar Autocomplete Guard:**
-   - Detect when an application has active autocomplete selection (`AXScreenCheck.hasSelection()`) and issue a forward delete before sending backspaces so the first typed character is not orphaned.
-4. **Custom App Menu Bar Icon:**
-   - Add a custom vector/template menu bar icon displaying a subtle Hebrew Alef / English A toggle symbol in addition to text status.
-5. **Apple Notarization:**
-   - Configure Developer ID signing identity (`codesign`) and `xcrun notarytool` in GitHub Actions for seamless Gatekeeper approval on fresh Macs without requiring right-click Open.
+- **`v1.0.0` (Initial Release):**
+  - Core QWERTY $\leftrightarrow$ SI-1452 physical mapping.
+  - `AXUIElement` direct text replacement and `NSSpellChecker` arbitration.
+  - Double-tap Shift manual shortcut and MenuBarExtra UI.
+- **`v1.0.1` (Terminal/CLI & Fast-Path):**
+  - Added `KeystrokeBuffer.swift` for Terminal.app, iTerm2, Alacritty, Warp.
+  - Added `HighFrequencyVocabulary.swift` to solve morphology ambiguity for `and` (`שמג`).
+- **`v1.0.2` (Permission Loop Fix):**
+  - Removed buggy `CGPreflightListenEventAccess()` check on macOS 14 Sonoma.
+  - Reduced permissions to Accessibility only. Embedded `--identifier "com.hebrew.HeSwitch"`.
+- **`v1.0.3` (Letter W, Auto-Reset, Launch at Startup):**
+  - Full bidirectional mapping for physical `W` key (`׳` U+05F3, `'`, `’`).
+  - Added mixed Geresh recovery (`׳hat` ➔ `what`, `ho׳` ➔ `how`, `to׳er` ➔ `tower`).
+  - Added `install.sh` and in-app self-healing permission reset (`xattr -cr` + `tccutil reset`).
+  - Added Launch at Startup (Login Items) with `SMAppService` + AppleScript fallback.
+- **`v1.0.4` (Fix `add` / `שגג` & Developer Vocabulary):**
+  - Solved `שגג` archaic Hebrew root collision by prioritizing `add`.
+  - Added developer keywords (`app`, `run`, `log`, `fix`, `dev`, `api`, `url`, `cmd`, `init`, `save`, `load`).
+- **`v1.0.5` (Instant Backspace Undo & Markdown `.md` / `צג` Support):**
+  - Implemented **Instant Backspace Undo (`UndoLearner`)**: tapping Backspace immediately reverts auto-switched words, restores layout, and ignores the word for the session.
+  - Fixed `md` ↔ `צג` conversion and added smart extension boundary parsing for filenames (`README.צג` ➔ `README.md`).
+
+---
+
+## 10. Comparative Feature Study & Development Roadmap
+
+Analysis of reference applications (**Punto Switcher**, **Caramba Switcher**, **Keyboop**, **Ne-To**, and **LangOver / הפוך על הפוך**) reveals key high-value capabilities:
+
+| Feature | Reference Source | Status | Purpose & Mechanism |
+| :--- | :--- | :---: | :--- |
+| **1. Backspace Instant Undo (`UndoLearner`)** | Punto, Caramba, Keyboop | **Implemented in v1.0.5** | Pressing Backspace within 2s of auto-repair reverts text, restores original keyboard layout, and adds word to session ignore list. |
+| **2. Selection Converter (`Cmd + Shift + X`)** | LangOver, Ne-To | Planned (Tier 1) | Select any paragraph or sentence, press shortcut to invert language in-place. |
+| **3. Trackpad Haptic Feedback** | Ne-To | Planned (Tier 1) | Subtle `NSHapticFeedbackManager` tactile tap on trackpad when layout flips silently. |
+| **4. Spotlight / URL Bar Autocomplete Guard** | Keyboop | Planned (Tier 1) | Check `kAXSelectedTextAttribute` so backspace doesn't delete active autocompletions in Chrome/Safari/Spotlight. |
+| **5. Instant `Caps Lock` Toggle** | Caramba | Planned (Tier 2) | Tap `Caps Lock` for zero-lag language toggle without macOS HUD delay (holding 0.5s preserves uppercase lock). |
+| **6. BiDi Reversed Hebrew Fixer** | LangOver (ReverseIt) | Planned (Tier 2) | Inverts character order for Hebrew in non-RTL apps (Photoshop, CAD, subtitle editors) where `שלום` displays as `םולש`. |
+| **7. Dynamic Carbon `UCKeyTranslate`** | Keyboop | Planned (Tier 2) | Dynamically queries active layout map from macOS Carbon API to automatically support Hebrew - PC and phonetic layouts. |
+| **8. Native Vector Menu Bar Icon** | Native macOS | Planned (Tier 3) | Minimal dual-language template glyph (`A / א`) matching dark/light mode with live visual indicator. |
+| **9. In-App Auto-Update Checker** | Native / Sparkle | Planned (Tier 3) | GUI button in Settings checking GitHub API for seamless single-click update. |
+

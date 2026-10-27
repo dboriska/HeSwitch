@@ -3,7 +3,7 @@ import Foundation
 /// Bundled top-frequency vocabulary sets for English and Hebrew.
 /// These words bypass spelling ambiguities and prefix morphology false-positives
 /// (such as Hebrew morphology treating "שמג" as valid prefixes + letter,
-/// or archaic Hebrew roots like "שגג" blocking "add").
+/// archaic Hebrew roots like "שגג" blocking "add", or "צג" blocking "md").
 public enum HighFrequencyVocabulary {
     public static let englishWords: Set<String> = [
         "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
@@ -22,7 +22,7 @@ public enum HighFrequencyVocabulary {
         "west", "western", "whose", "whole", "worth", "few", "show", "slow", "flow",
         "grow", "draw", "view", "window", "between", "power", "tower", "allow", "follow",
         "below", "own", "down", "town",
-        // Common verbs & developer keywords that collide with archaic Hebrew roots:
+        // Common verbs & developer keywords:
         "add", "are", "app", "ask", "all", "key", "pay", "set", "put", "run",
         "log", "fix", "bug", "dev", "prod", "api", "url", "id", "cmd", "dir",
         "save", "load", "init", "info", "edit", "list", "item", "menu", "icon",
@@ -32,6 +32,9 @@ public enum HighFrequencyVocabulary {
         "delete", "remove", "create", "select", "insert", "search", "replace",
         "change", "switch", "toggle", "enable", "disable", "input", "output",
         "import", "export", "upload", "download",
+        // Common file extensions & formats:
+        "md", "ts", "js", "py", "sh", "rs", "sql", "css", "xml", "yml", "yaml",
+        "json", "env", "bin", "src", "pkg", "txt", "doc", "pdf", "png", "jpg", "svg",
         // Code / Technical standard vocabulary:
         "code", "test", "hello", "world", "true", "false", "null", "func", "file", "open",
         "close", "read", "write", "print", "data", "text", "name", "user", "pass", "help",

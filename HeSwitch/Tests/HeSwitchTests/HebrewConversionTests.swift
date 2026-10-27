@@ -32,6 +32,7 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(LayoutConversion.convert("ין")?.output, "hi")
         XCTAssertEqual(LayoutConversion.convert("שמג")?.output, "and")
         XCTAssertEqual(LayoutConversion.convert("שגג")?.output, "add")
+        XCTAssertEqual(LayoutConversion.convert("צג")?.output, "md")
         XCTAssertEqual(LayoutConversion.convert("׳ישא")?.output, "what")
         XCTAssertEqual(LayoutConversion.convert("'ישא")?.output, "what")
         XCTAssertEqual(LayoutConversion.convert("ים׳")?.output, "how")
@@ -56,6 +57,7 @@ final class HebrewConversionTests: XCTestCase {
     func testHighFrequencyVocabulary() {
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("and", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("add", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("md", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("what", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("how", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("world", language: .english))
@@ -102,6 +104,8 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(WordBoundary.precedingWord(in: "mv\"k ", allowDelimiter: true), "mv\"k")
         XCTAssertEqual(WordBoundary.precedingWord(in: "׳hat ", allowDelimiter: true), "׳hat")
         XCTAssertEqual(WordBoundary.precedingWord(in: "ho׳ ", allowDelimiter: true), "ho׳")
+        XCTAssertEqual(WordBoundary.precedingWord(in: "צג ", allowDelimiter: true), "צג")
+        XCTAssertEqual(WordBoundary.precedingWord(in: "README.צג ", allowDelimiter: true), "צג")
         XCTAssertEqual(WordBoundary.precedingWord(in: "user@example.com ", allowDelimiter: true), nil)
         XCTAssertEqual(WordBoundary.precedingWord(in: "https://example.com ", allowDelimiter: true), nil)
     }
