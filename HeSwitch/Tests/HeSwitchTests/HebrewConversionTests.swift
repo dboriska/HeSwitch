@@ -83,9 +83,13 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("to"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("do"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("go"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("re"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("bang"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("אם"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("גם"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("עם"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("רק"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("נשמע"))
         XCTAssertFalse(AmbiguousCollisions.isAmbiguousCollision("hello"))
         XCTAssertFalse(AmbiguousCollisions.isAmbiguousCollision("שלום"))
     }

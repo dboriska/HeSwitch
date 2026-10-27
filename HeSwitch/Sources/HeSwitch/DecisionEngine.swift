@@ -17,32 +17,36 @@ public enum DecisionEngine {
 
         let targetLower = conversion.output.lowercased()
 
-        // 1. High-frequency vocabulary fast-path:
-        // Common words (e.g. "and" [שמג], "what" ['ישא], "how" [ים'], "the", "you", "shalom")
-        // take priority over morphological ambiguities.
-        if HighFrequencyVocabulary.isHighFrequency(targetLower, language: conversion.target) {
-            return conversion
-        }
-
-        // 2. Custom dictionary check:
-        if CustomDictionary.contains(conversion.output) {
-            return conversion
-        }
-
-        // 3. Resilient NSSpellChecker verification:
         let checker = NSSpellChecker.shared
         let sourceLang = language(for: conversion.source, available: checker.availableLanguages)
         let targetLang = language(for: conversion.target, available: checker.availableLanguages)
 
-        // Check if the source word was already correct
         let sourceIsCorrect = isCorrect(lower, language: sourceLang, checker: checker)
         let containsHebrewPunctuationKeys = word.contains(where: { ",.;'".contains($0) })
 
+        // 1. English words that are already correctly spelled without Hebrew punctuation keys must NEVER be converted!
+        if conversion.source == .english && sourceIsCorrect && !containsHebrewPunctuationKeys {
+            return nil
+        }
+
+        // 2. High-frequency vocabulary fast-path:
+        // Common words (e.g. "and" [שמג], "what" [׳ישא], "how" [ים׳], "the", "you", "shalom")
+        // take priority over morphological ambiguities in Hebrew.
+        if HighFrequencyVocabulary.isHighFrequency(targetLower, language: conversion.target) {
+            return conversion
+        }
+
+        // 3. Custom dictionary check:
+        if CustomDictionary.contains(conversion.output) {
+            return conversion
+        }
+
+        // 4. If Hebrew source was already correct and not containing punctuation keys:
         if sourceIsCorrect && !containsHebrewPunctuationKeys {
             return nil
         }
 
-        // Check if the converted word is correct in the target language
+        // 5. Check if the converted word is correct in the target language
         let targetIsCorrect = isCorrect(targetLower, language: targetLang, checker: checker)
         guard targetIsCorrect else { return nil }
 

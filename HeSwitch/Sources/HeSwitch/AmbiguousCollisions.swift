@@ -5,8 +5,8 @@ import Foundation
 public enum AmbiguousCollisions {
     /// Common pairs that should NOT be automatically swapped without surrounding context
     public static let blockedIsolatedSwaps: Set<String> = [
-        "to", "do", "go", "so", "no", "an", "ha", "as", "nut",
-        "אם", "גם", "עם", "דם", "נם", "שם", "יש", "שד", "הוא"
+        "to", "do", "go", "so", "no", "an", "ha", "as", "re", "bang", "nut",
+        "אם", "גם", "עם", "דם", "נם", "שם", "יש", "שד", "רק", "נשמע", "הוא"
     ]
 
     /// Returns true if an automatic swap should be suppressed to avoid false positives.
