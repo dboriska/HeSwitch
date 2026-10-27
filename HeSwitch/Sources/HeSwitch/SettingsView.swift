@@ -32,7 +32,7 @@ public struct SettingsView: View {
                 }
         }
         .padding(20)
-        .frame(width: 520, height: 400)
+        .frame(width: 540, height: 440)
     }
 
     private var generalTab: some View {
@@ -40,24 +40,18 @@ public struct SettingsView: View {
             Section {
                 Toggle("Automatic layout repair after Space / Return", isOn: $model.automaticRepair)
                 Toggle("Play sound on layout switch", isOn: $model.playSound)
-                Toggle("Launch at Login", isOn: Binding(
+                Toggle("Launch at Startup (Login Items)", isOn: Binding(
                     get: { model.launchAtLogin },
                     set: { model.setLaunchAtLogin($0) }
                 ))
             }
 
-            Section(header: Text("Permissions")) {
+            Section(header: Text("Permissions & Self-Healing")) {
                 HStack {
                     Text("Accessibility Access:")
                     Spacer()
                     Text(model.hasAccessibilityAccess ? "Granted ✓" : "Missing ✗")
                         .foregroundColor(model.hasAccessibilityAccess ? .green : .red)
-                }
-                HStack {
-                    Text("Input Monitoring Access:")
-                    Spacer()
-                    Text(model.hasInputMonitoringAccess ? "Granted ✓" : "Missing ✗")
-                        .foregroundColor(model.hasInputMonitoringAccess ? .green : .red)
                 }
 
                 if !model.hasRequiredAccess {
@@ -65,6 +59,17 @@ public struct SettingsView: View {
                         model.requestPermissions()
                     }
                 }
+
+                Button(action: {
+                    model.resetPermissionsAndQuarantine()
+                }) {
+                    Label("Reset & Fix Permissions (Automated)", systemImage: "arrow.counterclockwise.circle")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Text("Removes macOS quarantine flag and resets stale TCC accessibility cache. Recommended if macOS keeps asking for permission after an update.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -148,20 +153,6 @@ public struct SettingsView: View {
                 }
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
-
-            Button("Add Application…") {
-                let panel = NSOpenPanel()
-                panel.allowedContentTypes = [.application]
-                panel.allowsMultipleSelection = false
-                panel.canChooseDirectories = false
-                if panel.runModal() == .OK, let url = panel.url {
-                    if let bundle = Bundle(url: url),
-                       let bundleID = bundle.bundleIdentifier {
-                        let name = bundle.infoDictionary?["CFBundleName"] as? String ?? url.deletingPathExtension().lastPathComponent
-                        _ = model.addExcludedApplication(bundleID: bundleID, name: name)
-                    }
-                }
-            }
         }
     }
 }

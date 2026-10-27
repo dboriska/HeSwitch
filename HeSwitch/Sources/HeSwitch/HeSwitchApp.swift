@@ -25,7 +25,17 @@ struct HeSwitchApp: App {
                     Button("Grant Accessibility Access…") {
                         model.requestPermissions()
                     }
+                    Button("Reset & Fix Permissions…") {
+                        model.resetPermissionsAndQuarantine()
+                    }
                 }
+
+                Divider()
+
+                Toggle("Launch at Startup", isOn: Binding(
+                    get: { model.launchAtLogin },
+                    set: { model.setLaunchAtLogin($0) }
+                ))
 
                 Divider()
 
@@ -98,6 +108,16 @@ public final class HeSwitchModel: ObservableObject {
         guard !started else { return }
         started = true
 
+        // Check for macOS App Translocation
+        let bundlePath = Bundle.main.bundlePath
+        if bundlePath.contains("AppTranslocation") {
+            NSLog("[HeSwitch] Warning: App running under macOS App Translocation. Removing quarantine on /Applications/HeSwitch.app...")
+            let xattr = Process()
+            xattr.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            xattr.arguments = ["-cr", "/Applications/HeSwitch.app"]
+            try? xattr.run()
+        }
+
         keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             Task { @MainActor [weak self] in self?.handleKey(event) }
         }
@@ -117,6 +137,7 @@ public final class HeSwitchModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.refreshPermissions()
+                self.refreshLaunchAtLogin()
             }
         }
     }
@@ -137,19 +158,52 @@ public final class HeSwitchModel: ObservableObject {
         }
     }
 
+    /// Self-healing automated permission reset: clears quarantine and resets TCC cache
+    public func resetPermissionsAndQuarantine() {
+        let bundlePath = Bundle.main.bundlePath
+
+        // 1. Clear quarantine on current running bundle
+        let xattr = Process()
+        xattr.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+        xattr.arguments = ["-cr", bundlePath]
+        try? xattr.run()
+        xattr.waitUntilExit()
+
+        // 2. Also clear quarantine on /Applications/HeSwitch.app
+        if bundlePath != "/Applications/HeSwitch.app" && FileManager.default.fileExists(atPath: "/Applications/HeSwitch.app") {
+            let xattrApp = Process()
+            xattrApp.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            xattrApp.arguments = ["-cr", "/Applications/HeSwitch.app"]
+            try? xattrApp.run()
+            xattrApp.waitUntilExit()
+        }
+
+        // 3. Reset TCC accessibility database for com.hebrew.HeSwitch
+        let tcc = Process()
+        tcc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        tcc.arguments = ["reset", "Accessibility", "com.hebrew.HeSwitch"]
+        try? tcc.run()
+        tcc.waitUntilExit()
+
+        // 4. Trigger permission prompt
+        let options = ["AXTrustedCheckOptionPrompt" as CFString: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+
+        // 5. Open System Settings to Accessibility
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+
+        refreshPermissions()
+    }
+
     public func refreshLaunchAtLogin() {
-        let state = SMAppService.mainApp.status
-        launchAtLogin = state == .enabled || state == .requiresApproval
+        launchAtLogin = LaunchAtLogin.isEnabled
     }
 
     public func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled { try SMAppService.mainApp.register() }
-            else { try SMAppService.mainApp.unregister() }
-            refreshLaunchAtLogin()
-        } catch {
-            refreshLaunchAtLogin()
-        }
+        LaunchAtLogin.setEnabled(enabled)
+        refreshLaunchAtLogin()
     }
 
     public func setPreviousWordShortcut(_ shortcut: ManualShortcut) {
@@ -303,7 +357,6 @@ public final class HeSwitchModel: ObservableObject {
         }
 
         // 2. Terminal / CLI / Non-accessible apps path (Terminal, iTerm2, Alacritty, Warp)
-        // Here FocusedText.read() is nil, but KeystrokeBuffer has the exact typed word!
         guard let word = completedWordFromBuffer, !word.isEmpty,
               let conversion = DecisionEngine.candidate(for: word) else { return }
 

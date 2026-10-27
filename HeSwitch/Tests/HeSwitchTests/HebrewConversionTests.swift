@@ -19,23 +19,41 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(LayoutConversion.convert("husg")?.output, "יודע")
         XCTAssertEqual(LayoutConversion.convert("gcrh,")?.output, "עברית")
         XCTAssertEqual(LayoutConversion.convert("tbdkh,")?.output, "אנגלית")
+        XCTAssertEqual(LayoutConversion.convert("what")?.output, "׳ישא")
+        XCTAssertEqual(LayoutConversion.convert("how")?.output, "ים׳")
     }
 
     func testHebrewToEnglishConversions() {
         XCTAssertEqual(LayoutConversion.convert("יקךךם")?.output, "hello")
+        XCTAssertEqual(LayoutConversion.convert("׳םרךג")?.output, "world")
         XCTAssertEqual(LayoutConversion.convert("'םרךג")?.output, "world")
         XCTAssertEqual(LayoutConversion.convert("טקד")?.output, "yes")
         XCTAssertEqual(LayoutConversion.convert("בםגק")?.output, "code")
         XCTAssertEqual(LayoutConversion.convert("ין")?.output, "hi")
         XCTAssertEqual(LayoutConversion.convert("שמג")?.output, "and")
+        XCTAssertEqual(LayoutConversion.convert("׳ישא")?.output, "what")
         XCTAssertEqual(LayoutConversion.convert("'ישא")?.output, "what")
+        XCTAssertEqual(LayoutConversion.convert("ים׳")?.output, "how")
         XCTAssertEqual(LayoutConversion.convert("ים'")?.output, "how")
+        XCTAssertEqual(LayoutConversion.convert("׳הן")?.output, "when")
+    }
+
+    func testMixedHebrewGereshLetterWConversions() {
+        // Words typed when user starts in Hebrew or produces Geresh for W:
+        XCTAssertEqual(LayoutConversion.convert("׳hat")?.output, "what")
+        XCTAssertEqual(LayoutConversion.convert("ho׳")?.output, "how")
+        XCTAssertEqual(LayoutConversion.convert("׳orld")?.output, "world")
+        XCTAssertEqual(LayoutConversion.convert("׳hen")?.output, "when")
+        XCTAssertEqual(LayoutConversion.convert("to׳er")?.output, "tower")
     }
 
     func testHighFrequencyVocabulary() {
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("and", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("what", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("how", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("world", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("when", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("where", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("שלום", language: .hebrew))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("בוקר", language: .hebrew))
     }
@@ -48,8 +66,7 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(LayoutConversion.convert("nbf\"k")?.output, "מנכ\"ל")
         XCTAssertEqual(LayoutConversion.convert("gu\"s")?.output, "עו\"ד")
         XCTAssertEqual(LayoutConversion.convert("su\"j")?.output, "דו\"ח")
-        XCTAssertEqual(LayoutConversion.convert("m'hpx")?.output, "צ'יפס")
-        XCTAssertEqual(LayoutConversion.convert("mwhpx")?.output, "צ'יפס")
+        XCTAssertEqual(LayoutConversion.convert("mwhpx")?.output, "צ׳יפס")
     }
 
     func testDecimalAndNumberProtection() {
@@ -72,6 +89,8 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(WordBoundary.precedingWord(in: "akuo ", allowDelimiter: true), "akuo")
         XCTAssertEqual(WordBoundary.precedingWord(in: "t,v ", allowDelimiter: true), "t,v")
         XCTAssertEqual(WordBoundary.precedingWord(in: "mv\"k ", allowDelimiter: true), "mv\"k")
+        XCTAssertEqual(WordBoundary.precedingWord(in: "׳hat ", allowDelimiter: true), "׳hat")
+        XCTAssertEqual(WordBoundary.precedingWord(in: "ho׳ ", allowDelimiter: true), "ho׳")
         XCTAssertEqual(WordBoundary.precedingWord(in: "user@example.com ", allowDelimiter: true), nil)
         XCTAssertEqual(WordBoundary.precedingWord(in: "https://example.com ", allowDelimiter: true), nil)
     }

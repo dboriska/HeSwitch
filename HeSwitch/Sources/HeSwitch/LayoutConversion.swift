@@ -35,12 +35,18 @@ public enum LayoutConversion {
                 map[Character(upper)] = h
             }
         }
+        // In macOS Hebrew layout, the physical W key corresponds to Hebrew Geresh (׳ U+05F3)
+        map["w"] = "׳"
+        map["W"] = "׳"
         return map
     }()
 
     public static let heToEn: [Character: Character] = {
         var map = Dictionary(uniqueKeysWithValues: zip(hebrewBase, englishBase))
-        // Also map phonetic / alternate regular letters if needed (e.g. 'ל' is key 'k', 'ך' is key 'l')
+        // On macOS Hebrew layout, physical W produces '׳' (U+05F3) or '\'' or '’'
+        map["׳"] = "w"
+        map["'"] = "w"
+        map["’"] = "w"
         return map
     }()
 
@@ -48,6 +54,29 @@ public enum LayoutConversion {
     /// Returns nil if string contains mixed scripts or no convertible characters.
     public static func convert(_ text: String) -> Conversion? {
         guard !text.isEmpty else { return nil }
+
+        // 1. Fast-path for English words typed with Hebrew Geresh or apostrophe for 'w':
+        // e.g. "׳hat" -> "what", "ho׳" -> "how", "׳orld" -> "world", "׳hen" -> "when", "to׳er" -> "tower"
+        if text.contains("׳") || text.contains("’") || text.contains("'") {
+            let lower = text.lowercased()
+            let commonContractions: Set<String> = [
+                "don't", "can't", "won't", "it's", "i'm", "you're", "they're", "we're",
+                "that's", "what's", "there's", "he's", "she's", "let's", "didn't",
+                "doesn't", "isn't", "aren't", "wasn't", "weren't", "haven't", "hasn't",
+                "hadn't", "couldn't", "shouldn't", "wouldn't"
+            ]
+            if !commonContractions.contains(lower) {
+                let replaced = String(text.map { ($0 == "׳" || $0 == "’" || $0 == "'") ? "w" : $0 })
+                if replaced != text && replaced.allSatisfy({ $0.isASCII && $0.isLetter }) {
+                    return Conversion(
+                        input: text,
+                        output: replaced,
+                        source: .hebrew,
+                        target: .english
+                    )
+                }
+            }
+        }
 
         var enLetterCount = 0
         var heLetterCount = 0
@@ -91,8 +120,8 @@ public enum LayoutConversion {
                 continue
             }
 
-            // Gershayim and Geresh inside Hebrew words
-            if current == "\"" || current == "״" || current == "׳" {
+            // Gershayim inside Hebrew words when converting English to Hebrew
+            if source == .english && (current == "\"" || current == "״") {
                 converted.append(current)
                 continue
             }

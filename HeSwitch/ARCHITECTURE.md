@@ -70,7 +70,18 @@ Hebrew frequently uses:
 - **Geresh (`'`):** Used for modified sounds (e.g. `צ'יפס` = `m'hpx` / `mwhpx`) and single-letter abbreviations (`ד'`, `ה'`).
 - The parser and converter preserve quotes within tokens without splitting words.
 
-### D. Ambiguous Collisions
+### D. Physical Key `W`, Hebrew Geresh (`׳` U+05F3) & Apostrophe (`'`)
+On macOS standard Hebrew keyboard layout, physical key `W` produces:
+- **`׳` (Hebrew Geresh, Unicode U+05F3)** or ASCII `'` (U+0027).
+- In earlier versions, words starting or ending with `w` in Hebrew layout (e.g. `׳ישא` for `what`, `ים׳` for `how`, `׳םרךג` for `world`) failed because:
+  1. `׳` was preserved as literal punctuation during conversion, leaving words like `׳hat` and `ho׳`.
+  2. Mixed-script validation rejected words containing both ASCII English letters and Hebrew scalar U+05F3.
+- **Resolution:**
+  - `LayoutConversion.heToEn` explicitly maps `׳`, `'`, and `’` (U+2019) to `w`.
+  - `LayoutConversion.enToHe` maps `w` and `W` to `׳`.
+  - A dedicated pre-pass detects English words typed with Hebrew Geresh (e.g. `׳hat` ➔ `what`, `ho׳` ➔ `how`, `to׳er` ➔ `tower`) and converts them to valid English candidates.
+
+### E. Ambiguous Collisions
 A small set of high-frequency 2-letter words exist legally in both English and Hebrew:
 - `to` ↔ `אם`
 - `do` ↔ `גם`
@@ -88,6 +99,45 @@ These words are guarded in `AmbiguousCollisions.swift` and are **never** auto-sw
 ## 4. Codebase Architecture
 
 ```
+HeSwitch/Sources/HeSwitch/
+├── HeSwitchApp.swift               # Application entry point, NSApplication delegate, MenuBarExtra UI, event loop
+├── SettingsView.swift              # Native SwiftUI preferences (General, Shortcuts, Custom Dictionary, Exclusions)
+├── LaunchAtLogin.swift             # Dual-engine autorun (SMAppService + AppleScript System Events fallback)
+├── DecisionEngine.swift            # Linguistic arbitration: spellchecking, high-frequency fast-paths, collision filters
+├── HighFrequencyVocabulary.swift   # Top-frequency English & Hebrew word sets to bypass morphological false-positives
+├── LayoutConversion.swift          # QWERTY ↔ SI-1452 character maps, Geresh/W handling, decimal guards
+├── KeystrokeBuffer.swift           # In-memory FIFO keystroke ring buffer for Terminal/CLI/iTerm support
+├── KeyboardReplacement.swift       # Direct AX memory injection & fallback synthetic CGEvent backspaces
+├── FocusedText.swift               # Accessibility AXUIElement snapshot reader and memory replacer
+├── WordBoundary.swift              # Word extraction, delimiter detection, punctuation trimming
+├── KeyboardLayoutService.swift     # Carbon TIS layout query and input source selection (TISSelectInputSource)
+├── DoubleTapDetector.swift         # Double-tap modifier detection (Shift, Control, Option, Command)
+├── AmbiguousCollisions.swift       # Whitelist of dual-language collisions
+├── CustomDictionary.swift          # User-defined whitelist stored in UserDefaults
+├── ApplicationExclusions.swift     # Per-application disabling of auto-switch
+└── SwitchSoundPlayer.swift         # Auditory feedback via NSSound
+```
+
+### Key Subsystems:
+
+#### A. Fast-Path Vocabulary (`HighFrequencyVocabulary.swift`)
+Hebrew morphology (`NSSpellChecker`) frequently treats arbitrary Hebrew character sequences as valid prefixed forms (e.g. `ש` [that] + `מ` [from] + `ג` as a valid form of letter `ג`). To prevent words like `שמג` from staying unconverted when the user intended `and`, top-frequency words in English (`and`, `what`, `how`, `world`, `the`, `you`) and Hebrew (`שלום`, `בוקר`, `מה`, `טוב`) bypass morphological ambiguities and switch instantly.
+
+#### B. Launch at Startup (`LaunchAtLogin.swift`)
+Because ad-hoc signed apps (distributed without a paid Apple Developer certificate) can fail when registering via `SMAppService.mainApp.register()`, `LaunchAtLogin` implements a resilient hybrid approach:
+1. Attempts `SMAppService.mainApp` (macOS 13+ standard).
+2. If registration fails or throws an error, seamlessly executes an AppleScript snippet via `NSAppleScript` targeting `System Events`:
+   ```applescript
+   tell application "System Events"
+       make login item at end with properties {path: "/Applications/HeSwitch.app", name: "HeSwitch", hidden: false}
+   end tell
+   ```
+3. Checks both `SMAppService` status and `System Events` login items for the current state.
+
+#### C. Automated Permission Reset & Quarantine Removal (`install.sh` & In-App)
+macOS Gatekeeper attaches `com.apple.quarantine` to downloaded `.zip` releases, causing Gatekeeper to execute the app from a randomized read-only folder (`/private/var/folders/.../AppTranslocation/...`). This prevents persistent Accessibility TCC grants across restarts.
+- **`install.sh`:** Automatically curls the latest GitHub release, unzips to `/Applications/HeSwitch.app`, removes quarantine (`xattr -cr /Applications/HeSwitch.app`), resets stale TCC accessibility cache (`tccutil reset Accessibility com.hebrew.HeSwitch`), launches the app, and opens System Settings.
+- **In-App Self-Healing:** The Settings window and Menu Bar menu feature a **"Reset & Fix Permissions (Automated)"** button that runs `xattr -cr` and `tccutil reset` directly from the app.
 HeSwitch/
 ├── Package.swift                             # SwiftPM configuration (.executableTarget, macOS 14+)
 ├── README.md                                 # User-facing guide and installation

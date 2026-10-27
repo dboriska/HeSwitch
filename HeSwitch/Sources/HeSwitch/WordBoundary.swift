@@ -34,9 +34,9 @@ public enum WordBoundary {
         }
 
         // Include characters that can represent Hebrew letters or acronyms:
-        // `,` is ת, `.` is ץ, `;` is ף, `'` is geresh, `"` is gershayim
+        // `,` is ת, `.` is ץ, `;` is ף, `'` is geresh, `"` is gershayim, `׳` is geresh, `״` is gershayim
         let word = String(characters.reversed().prefix { char in
-            char.isLetter || char.isNumber == false && "`[];',.\"״׳".contains(char)
+            char.isLetter || (!char.isNumber && "`[];',.\"״׳’".contains(char))
         }.reversed())
 
         // Trim any trailing pure punctuation (e.g. trailing period from real punctuation)
@@ -58,8 +58,10 @@ public enum WordBoundary {
 
         // Ensure word is not part of a URL, email, or filesystem path
         if characters.count > trimmed.count {
-            let before = characters[characters.count - trimmed.count - 1]
-            guard !before.isLetter, !before.isNumber, !"@/_#".contains(before) else { return nil }
+            let precedingChar = characters[characters.count - trimmed.count - 1]
+            if precedingChar == "/" || precedingChar == "@" || precedingChar == ":" || precedingChar == "\\" {
+                return nil
+            }
         }
 
         return trimmed
