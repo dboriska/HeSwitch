@@ -7,7 +7,6 @@ public enum DecisionEngine {
         guard word.count >= 2, word.count <= 40,
               !CustomDictionary.contains(word),
               !AmbiguousCollisions.isAmbiguousCollision(word),
-              !HeSwitchModel.shared.isSessionIgnored(word),
               let conversion = LayoutConversion.convert(word) else { return nil }
 
         // Converted word must be mostly letters or legitimate Hebrew punctuation (geresh, gershayim)

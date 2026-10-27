@@ -106,6 +106,8 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(WordBoundary.precedingWord(in: "ho׳ ", allowDelimiter: true), "ho׳")
         XCTAssertEqual(WordBoundary.precedingWord(in: "צג ", allowDelimiter: true), "צג")
         XCTAssertEqual(WordBoundary.precedingWord(in: "README.צג ", allowDelimiter: true), "צג")
+        XCTAssertEqual(WordBoundary.extractFileExtension(from: "README.צג"), "צג")
+        XCTAssertEqual(WordBoundary.extractFileExtension(from: "notes.txt"), nil)
         XCTAssertEqual(WordBoundary.precedingWord(in: "user@example.com ", allowDelimiter: true), nil)
         XCTAssertEqual(WordBoundary.precedingWord(in: "https://example.com ", allowDelimiter: true), nil)
     }

@@ -3,26 +3,6 @@ import ApplicationServices
 import ServiceManagement
 import SwiftUI
 
-public struct AutoRepairRecord {
-    public let originalInput: String
-    public let convertedOutput: String
-    public let delimiter: String
-    public let originalLayout: KeyboardLanguage
-    public let targetLayout: KeyboardLanguage
-    public let timestamp: Date
-    public let processID: pid_t?
-
-    public init(originalInput: String, convertedOutput: String, delimiter: String, originalLayout: KeyboardLanguage, targetLayout: KeyboardLanguage, timestamp: Date, processID: pid_t?) {
-        self.originalInput = originalInput
-        self.convertedOutput = convertedOutput
-        self.delimiter = delimiter
-        self.originalLayout = originalLayout
-        self.targetLayout = targetLayout
-        self.timestamp = timestamp
-        self.processID = processID
-    }
-}
-
 @main
 struct HeSwitchApp: App {
     @StateObject private var model = HeSwitchModel.shared
@@ -114,15 +94,6 @@ public final class HeSwitchModel: ObservableObject {
     private var doubleTap = DoubleTapDetector()
     private var revision = 0
     private var started = false
-
-    // UndoLearner (Instant Backspace Undo) state
-    private var lastAutoRepair: AutoRepairRecord?
-    private var keystrokesSinceRepair = 0
-    private var sessionIgnoredWords: Set<String> = []
-
-    public func isSessionIgnored(_ word: String) -> Bool {
-        sessionIgnoredWords.contains(word.lowercased())
-    }
 
     private init() {
         automaticRepair = UserDefaults.standard.object(forKey: "automaticRepair") as? Bool ?? true
@@ -272,25 +243,10 @@ public final class HeSwitchModel: ObservableObject {
             return
         }
 
-        // Backspace key
+        // Backspace key: update keystroke buffer naturally without hijacking or blacklisting
         if event.keyCode == 51 {
-            // Feature 1: Instant Backspace Undo (UndoLearner)
-            if let repair = lastAutoRepair,
-               keystrokesSinceRepair == 0,
-               Date().timeIntervalSince(repair.timestamp) < 2.0 {
-                undoLastAutoRepair(repair)
-                return
-            }
             KeystrokeBuffer.shared.backspace()
             return
-        }
-
-        // Count non-modifier keys typed after auto-repair to bound undo window
-        if !event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.control) {
-            keystrokesSinceRepair += 1
-            if keystrokesSinceRepair > 1 {
-                lastAutoRepair = nil
-            }
         }
 
         // Navigation keys (Escape, Arrows)
@@ -388,18 +344,6 @@ public final class HeSwitchModel: ObservableObject {
                 currentLayout = keyboard.currentLayout
                 statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
                 if playSound { soundPlayer.play() }
-
-                // Save repair state for Instant Backspace Undo (UndoLearner)
-                self.lastAutoRepair = AutoRepairRecord(
-                    originalInput: word,
-                    convertedOutput: conversion.output,
-                    delimiter: delimiter,
-                    originalLayout: conversion.source,
-                    targetLayout: conversion.target,
-                    timestamp: Date(),
-                    processID: processID
-                )
-                self.keystrokesSinceRepair = 0
                 return
             }
 
@@ -409,70 +353,19 @@ public final class HeSwitchModel: ObservableObject {
             currentLayout = keyboard.currentLayout
             statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
             if playSound { soundPlayer.play() }
-
-            self.lastAutoRepair = AutoRepairRecord(
-                originalInput: word,
-                convertedOutput: conversion.output,
-                delimiter: delimiter,
-                originalLayout: conversion.source,
-                targetLayout: conversion.target,
-                timestamp: Date(),
-                processID: processID
-            )
-            self.keystrokesSinceRepair = 0
             return
         }
 
         // 2. Terminal / CLI / Non-accessible apps path (Terminal, iTerm2, Alacritty, Warp)
-        guard let word = completedWordFromBuffer, !word.isEmpty,
-              let conversion = DecisionEngine.candidate(for: word) else { return }
+        guard let rawWord = completedWordFromBuffer, !rawWord.isEmpty else { return }
+        let word = WordBoundary.extractFileExtension(from: rawWord) ?? rawWord
+        guard let conversion = DecisionEngine.candidate(for: word) else { return }
 
         // In terminals, send backspaces for the word + delimiter, then type the converted word + delimiter
         KeyboardReplacement.replace(backspaces: word.utf16.count + delimiter.utf16.count, with: conversion.output + delimiter)
         keyboard.select(conversion.target)
         currentLayout = keyboard.currentLayout
         statusText = "CLI Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
-        if playSound { soundPlayer.play() }
-
-        self.lastAutoRepair = AutoRepairRecord(
-            originalInput: word,
-            convertedOutput: conversion.output,
-            delimiter: delimiter,
-            originalLayout: conversion.source,
-            targetLayout: conversion.target,
-            timestamp: Date(),
-            processID: processID
-        )
-        self.keystrokesSinceRepair = 0
-    }
-
-    /// Reverts the most recent automatic repair and switches layout back (UndoLearner)
-    private func undoLastAutoRepair(_ repair: AutoRepairRecord) {
-        lastAutoRepair = nil
-        sessionIgnoredWords.insert(repair.originalInput.lowercased())
-        sessionIgnoredWords.insert(repair.convertedOutput.lowercased())
-
-        let processID = repair.processID
-        var reverted = false
-
-        if let snapshot = FocusedText.read(), snapshot.processID == processID {
-            let combined = repair.convertedOutput + repair.delimiter
-            if snapshot.prefix.hasSuffix(combined) {
-                let range = NSRange(location: max(0, snapshot.selection.location - combined.utf16.count), length: combined.utf16.count)
-                reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput)
-            } else if snapshot.prefix.hasSuffix(repair.convertedOutput) {
-                let range = NSRange(location: max(0, snapshot.selection.location - repair.convertedOutput.utf16.count), length: repair.convertedOutput.utf16.count)
-                reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput)
-            }
-        }
-
-        if !reverted {
-            KeyboardReplacement.replace(backspaces: repair.convertedOutput.utf16.count + repair.delimiter.utf16.count, with: repair.originalInput)
-        }
-
-        keyboard.select(repair.originalLayout)
-        currentLayout = keyboard.currentLayout
-        statusText = "Undone: Reverted to \(repair.originalInput)"
         if playSound { soundPlayer.play() }
     }
 

@@ -5,6 +5,29 @@ public enum WordBoundary {
         character == " " || character == "\u{00A0}" || character == "\u{202F}" || character == "\n" || character == "\t"
     }
 
+    /// Extracts file extension if base and extension are typed in different scripts
+    /// e.g. "README.צג" -> "צג" (which will convert to "md")
+    public static func extractFileExtension(from text: String) -> String? {
+        guard let dotIndex = text.lastIndex(of: ".") else { return nil }
+        let ext = String(text[text.index(after: dotIndex)...])
+        let base = String(text[..<dotIndex])
+        guard !ext.isEmpty && ext.count <= 5 && !base.isEmpty else { return nil }
+
+        let extIsHebrew = ext.allSatisfy { LayoutConversion.isHebrew($0) }
+        let baseIsEnglish = base.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
+        if extIsHebrew && baseIsEnglish {
+            return ext
+        }
+
+        let extIsEnglish = ext.allSatisfy { $0.isASCII && $0.isLetter }
+        let baseIsHebrew = base.allSatisfy { LayoutConversion.isHebrew($0) }
+        if extIsEnglish && baseIsHebrew {
+            return ext
+        }
+
+        return nil
+    }
+
     /// Extracts recent completed words before the caret, allowing a trailing delimiter or punctuation.
     public static func recentCompletedWords(in prefix: String, maxTrailingCharacters: Int = 32) -> [(word: String, trailing: String)] {
         let characters = Array(prefix)
@@ -59,21 +82,8 @@ public enum WordBoundary {
         // Check for file extension with different script:
         // e.g. "README.צג" where base is English ("README") and extension is Hebrew ("צג")
         // In this case, only the extension "צג" should be repaired to "md"!
-        if let dotIndex = trimmed.lastIndex(of: ".") {
-            let ext = String(trimmed[trimmed.index(after: dotIndex)...])
-            let base = String(trimmed[..<dotIndex])
-            if !ext.isEmpty && ext.count <= 5 && !base.isEmpty {
-                let extIsHebrew = ext.allSatisfy { LayoutConversion.isHebrew($0) }
-                let baseIsEnglish = base.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
-                if extIsHebrew && baseIsEnglish {
-                    return ext
-                }
-                let extIsEnglish = ext.allSatisfy { $0.isASCII && $0.isLetter }
-                let baseIsHebrew = base.allSatisfy { LayoutConversion.isHebrew($0) }
-                if extIsEnglish && baseIsHebrew {
-                    return ext
-                }
-            }
+        if let ext = extractFileExtension(from: trimmed) {
+            return ext
         }
 
         // Ensure word is not part of a URL, email, or filesystem path

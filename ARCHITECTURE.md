@@ -277,9 +277,13 @@ curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh |
 - **`v1.0.4` (Fix `add` / `שגג` & Developer Vocabulary):**
   - Solved `שגג` archaic Hebrew root collision by prioritizing `add`.
   - Added developer keywords (`app`, `run`, `log`, `fix`, `dev`, `api`, `url`, `cmd`, `init`, `save`, `load`).
-- **`v1.0.5` (Instant Backspace Undo & Markdown `.md` / `צג` Support):**
-  - Implemented **Instant Backspace Undo (`UndoLearner`)**: tapping Backspace immediately reverts auto-switched words, restores layout, and ignores the word for the session.
-  - Fixed `md` ↔ `צג` conversion and added smart extension boundary parsing for filenames (`README.צג` ➔ `README.md`).
+- **`v1.0.5` (Markdown `.md` / `צג` Support & Boundary Splitting):**
+  - Added `md` ↔ `צג` developer keyword conversion.
+  - Added smart extension boundary parsing for filenames (`README.צג` ➔ `README.md`).
+- **`v1.0.6` (Fix Backspace Blacklisting & Universal Extension Splitting):**
+  - **Removed session blacklisting (`sessionIgnoredWords`)**: Pressing Backspace by mistake or to delete trailing characters no longer disables transcoding for that word in the future.
+  - **Natural Backspace Passthrough**: Restored standard non-destructive Backspace behavior so normal editing is never hijacked.
+  - **Universal Terminal & Accessible Extension Support**: CLI / Terminal keystroke buffer now splits file extensions via `WordBoundary.extractFileExtension`, enabling `cat README.צג ` ➔ `cat README.md ` across all environments.
 
 ---
 
@@ -289,7 +293,7 @@ Analysis of reference applications (**Punto Switcher**, **Caramba Switcher**, **
 
 | Feature | Reference Source | Status | Purpose & Mechanism |
 | :--- | :--- | :---: | :--- |
-| **1. Backspace Instant Undo (`UndoLearner`)** | Punto, Caramba, Keyboop | **Implemented in v1.0.5** | Pressing Backspace within 2s of auto-repair reverts text, restores original keyboard layout, and adds word to session ignore list. |
+| **1. Manual Layout Inverter (`Double-Tap Shift`)** | Punto, Keyboop | **Active** | Double-tapping Shift (or customizable shortcut) inverts the previous word/selection cleanly without corrupting typing or blacklisting words. |
 | **2. Selection Converter (`Cmd + Shift + X`)** | LangOver, Ne-To | Planned (Tier 1) | Select any paragraph or sentence, press shortcut to invert language in-place. |
 | **3. Trackpad Haptic Feedback** | Ne-To | Planned (Tier 1) | Subtle `NSHapticFeedbackManager` tactile tap on trackpad when layout flips silently. |
 | **4. Spotlight / URL Bar Autocomplete Guard** | Keyboop | Planned (Tier 1) | Check `kAXSelectedTextAttribute` so backspace doesn't delete active autocompletions in Chrome/Safari/Spotlight. |
