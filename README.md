@@ -38,9 +38,9 @@ This single command:
   On macOS Hebrew layout, the physical `W` key produces the Hebrew Geresh (`׳` U+05F3) or `'`. HeSwitch provides complete bi-directional support:
   - `׳ישא` or `'ישא` ➔ `what`
   - `ים׳` or `ים'` ➔ `how`
-  - `׳הן` ➔ `when`
-  - `׳הרק` ➔ `where`
-  - `׳חי` ➔ `why`
+  - `׳יקמ` ➔ `when`
+  - `׳יקרק` ➔ `where`
+  - `׳יט` ➔ `why`
   - `׳hat` ➔ `what` (mixed Geresh English words)
   - `ho׳` ➔ `how`
   - `to׳er` ➔ `tower`
@@ -54,8 +54,8 @@ This single command:
   Correctly converts Hebrew letters that live on punctuation keys:
   - `t,v` ➔ `אתה` (since `,` is `ת`)
   - `t,` ➔ `את`
-  - `rum.` ➔ `רוץ` (since `.` is `ץ`)
-  - `suc;` ➔ `סוף` (since `;` is `ף`)
+  - `ru.` ➔ `רוץ` (since `.` is `ץ`)
+  - `xu;` ➔ `סוף` (since `;` is `ף` and `x` is `ס`)
 - **Hebrew Acronyms & Abbreviations:**
   Supports Gershayim (`"`) and Geresh (`'`):
   - `mv"k` ➔ `צה"ל`

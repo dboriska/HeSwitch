@@ -35,7 +35,12 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(LayoutConversion.convert("'ישא")?.output, "what")
         XCTAssertEqual(LayoutConversion.convert("ים׳")?.output, "how")
         XCTAssertEqual(LayoutConversion.convert("ים'")?.output, "how")
-        XCTAssertEqual(LayoutConversion.convert("׳הן")?.output, "when")
+        XCTAssertEqual(LayoutConversion.convert("׳יקמ")?.output, "when")
+        XCTAssertEqual(LayoutConversion.convert("׳יקרק")?.output, "where")
+        XCTAssertEqual(LayoutConversion.convert("׳יט")?.output, "why")
+        XCTAssertEqual(LayoutConversion.convert("׳ים")?.output, "who")
+        XCTAssertEqual(LayoutConversion.convert("׳ןאי")?.output, "with")
+        XCTAssertEqual(LayoutConversion.convert("׳ןךך")?.output, "will")
     }
 
     func testMixedHebrewGereshLetterWConversions() {
@@ -93,5 +98,33 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(WordBoundary.precedingWord(in: "ho׳ ", allowDelimiter: true), "ho׳")
         XCTAssertEqual(WordBoundary.precedingWord(in: "user@example.com ", allowDelimiter: true), nil)
         XCTAssertEqual(WordBoundary.precedingWord(in: "https://example.com ", allowDelimiter: true), nil)
+    }
+
+    func testRandomizedTypingSequenceStress() {
+        let pairs: [(en: String, he: String)] = [
+            ("what", "׳ישא"),
+            ("how", "ים׳"),
+            ("when", "׳יקמ"),
+            ("where", "׳יקרק"),
+            ("why", "׳יט"),
+            ("who", "׳ים"),
+            ("with", "׳ןאי"),
+            ("will", "׳ןךך"),
+            ("world", "׳םרךג"),
+            ("and", "שמג"),
+            ("hello", "יקךךם"),
+            ("code", "בםגק")
+        ]
+        for pair in pairs {
+            let convToEn = LayoutConversion.convert(pair.he)
+            XCTAssertEqual(convToEn?.output, pair.en)
+            XCTAssertEqual(convToEn?.source, .hebrew)
+            XCTAssertEqual(convToEn?.target, .english)
+
+            let convToHe = LayoutConversion.convert(pair.en)
+            XCTAssertEqual(convToHe?.output, pair.he)
+            XCTAssertEqual(convToHe?.source, .english)
+            XCTAssertEqual(convToHe?.target, .hebrew)
+        }
     }
 }

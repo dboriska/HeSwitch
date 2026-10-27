@@ -6,3 +6,5 @@ keyboop/
 .DS_Store
 *.xcodeproj
 *.xcworkspace
+__pycache__/
+*.pyc
