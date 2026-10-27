@@ -13,7 +13,6 @@ public struct FocusedText {
 
     public static func read() -> Self? {
         guard AXIsProcessTrusted(),
-              CGPreflightListenEventAccess(),
               !IsSecureEventInputEnabled(),
               let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier,
               processID != ProcessInfo.processInfo.processIdentifier else { return nil }

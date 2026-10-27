@@ -41,7 +41,7 @@ cat > "${CONTENTS_DIR}/Info.plist" << 'EOF'
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
+    <string>14.0</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>
@@ -56,6 +56,6 @@ EOF
 
 SIGNING_IDENTITY="${HESWITCH_SIGNING_IDENTITY:--}"
 echo "==> Signing HeSwitch.app with identity: ${SIGNING_IDENTITY}..."
-codesign --force --deep --sign "${SIGNING_IDENTITY}" "${APP_DIR}"
+codesign --force --deep --sign "${SIGNING_IDENTITY}" --identifier "com.hebrew.HeSwitch" "${APP_DIR}"
 
 echo "==> Packaging complete: ${APP_DIR}"

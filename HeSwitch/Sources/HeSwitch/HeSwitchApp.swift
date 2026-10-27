@@ -19,10 +19,10 @@ struct HeSwitchApp: App {
 
                 if !model.hasRequiredAccess {
                     Divider()
-                    Text("Accessibility & Input Monitoring permissions are required.")
+                    Text("Accessibility permission is required.")
                         .font(.caption)
                         .foregroundColor(.red)
-                    Button("Grant Permissions…") {
+                    Button("Grant Accessibility Access…") {
                         model.requestPermissions()
                     }
                 }
@@ -73,7 +73,7 @@ public final class HeSwitchModel: ObservableObject {
     @Published public private(set) var previousWordShortcut: ManualShortcut
     @Published public private(set) var statusText = "Ready"
 
-    public var hasRequiredAccess: Bool { hasAccessibilityAccess && hasInputMonitoringAccess }
+    public var hasRequiredAccess: Bool { hasAccessibilityAccess }
 
     private let keyboard = KeyboardLayoutService()
     private let soundPlayer = SwitchSoundPlayer()
@@ -128,9 +128,13 @@ public final class HeSwitchModel: ObservableObject {
 
     public func requestPermissions() {
         let options = ["AXTrustedCheckOptionPrompt" as CFString: true] as CFDictionary
-        AXIsProcessTrustedWithOptions(options)
-        CGRequestListenEventAccess()
-        refreshPermissions()
+        let trusted = AXIsProcessTrustedWithOptions(options)
+        hasAccessibilityAccess = trusted
+        if !trusted {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
     public func refreshLaunchAtLogin() {
