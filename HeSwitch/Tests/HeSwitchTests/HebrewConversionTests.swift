@@ -117,6 +117,18 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertFalse(AmbiguousCollisions.isAmbiguousCollision("שלום"))
     }
 
+    func testExcludedWords() {
+        XCTAssertTrue(ExcludedWords.contains("ls"))
+        XCTAssertTrue(ExcludedWords.contains("cd"))
+        XCTAssertTrue(ExcludedWords.contains("rm"))
+        XCTAssertFalse(ExcludedWords.contains("hello"))
+
+        XCTAssertTrue(ExcludedWords.add("testword"))
+        XCTAssertTrue(ExcludedWords.contains("testword"))
+        ExcludedWords.remove("testword")
+        XCTAssertFalse(ExcludedWords.contains("testword"))
+    }
+
     func testWordBoundaryExtraction() {
         XCTAssertEqual(WordBoundary.precedingWord(in: "akuo ", allowDelimiter: true), "akuo")
         XCTAssertEqual(WordBoundary.precedingWord(in: "t,v ", allowDelimiter: true), "t,v")

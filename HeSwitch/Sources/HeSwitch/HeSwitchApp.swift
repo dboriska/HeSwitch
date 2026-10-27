@@ -23,6 +23,14 @@ public struct AutoRepairRecord {
     }
 }
 
+public enum SmartBackspaceMode: String, Codable, CaseIterable, Identifiable {
+    case singleTap = "1-Tap Undo (Revert immediately on Backspace)"
+    case twoStage = "Two-Stage Undo (Delete space first, revert on 2nd Backspace)"
+    case disabled = "Disabled (Standard Backspace only)"
+
+    public var id: String { rawValue }
+}
+
 @main
 struct HeSwitchApp: App {
     @StateObject private var model = HeSwitchModel.shared
@@ -59,8 +67,25 @@ struct HeSwitchApp: App {
 
                 Divider()
 
+                if case .updateAvailable(let version, let url, _) = model.updater.state {
+                    Button(action: { model.updater.installUpdate(downloadURL: url, version: version) }) {
+                        HStack {
+                            Image(systemName: "arrow.down.circle.fill")
+                            Text("Update to \(version) - Click to Install")
+                                .font(.caption.bold())
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+                    Divider()
+                }
+
                 Button("Transcode Selection (⌘⇧X)") {
                     model.transcodeSelection()
+                }
+
+                Button("Check for Updates…") {
+                    model.updater.checkForUpdates(silent: false)
                 }
 
                 Button("Settings…") {
@@ -119,14 +144,36 @@ public final class HeSwitchModel: ObservableObject {
     private var revision = 0
     private var started = false
 
-    // Smart Backspace (Option A: 1-Tap Revert, No Session Blacklist) state
+    public let updater = AppUpdater.shared
+
+    @Published public var smartBackspaceMode: SmartBackspaceMode {
+        didSet { UserDefaults.standard.set(smartBackspaceMode.rawValue, forKey: "smartBackspaceMode") }
+    }
+    @Published public var convertCapitalizedEnglish: Bool {
+        didSet { UserDefaults.standard.set(convertCapitalizedEnglish, forKey: "convertCapitalizedEnglish") }
+    }
+    @Published public var enableSelectionTranscoder: Bool {
+        didSet { UserDefaults.standard.set(enableSelectionTranscoder, forKey: "enableSelectionTranscoder") }
+    }
+    @Published public private(set) var excludedWords = ExcludedWords.words
+
+    // Smart Backspace state
     private var lastAutoRepair: AutoRepairRecord?
     private var keystrokesSinceRepair = 0
+    private var twoStageUndoArmed = false
     public private(set) var temporarilySuppressedWord: String?
 
     private init() {
         automaticRepair = UserDefaults.standard.object(forKey: "automaticRepair") as? Bool ?? true
         playSound = UserDefaults.standard.object(forKey: "playSound") as? Bool ?? true
+        if let modeStr = UserDefaults.standard.string(forKey: "smartBackspaceMode"),
+           let mode = SmartBackspaceMode(rawValue: modeStr) {
+            smartBackspaceMode = mode
+        } else {
+            smartBackspaceMode = .singleTap
+        }
+        convertCapitalizedEnglish = UserDefaults.standard.object(forKey: "convertCapitalizedEnglish") as? Bool ?? true
+        enableSelectionTranscoder = UserDefaults.standard.object(forKey: "enableSelectionTranscoder") as? Bool ?? true
         previousWordShortcut = .doubleTap(.shift)
         currentLayout = keyboard.currentLayout
         refreshPermissions()
@@ -168,6 +215,10 @@ public final class HeSwitchModel: ObservableObject {
                 self.refreshPermissions()
                 self.refreshLaunchAtLogin()
             }
+        }
+
+        if updater.autoCheckOnLaunch {
+            updater.checkForUpdates(silent: true)
         }
     }
 
@@ -261,13 +312,39 @@ public final class HeSwitchModel: ObservableObject {
         excludedApplications = ApplicationExclusions.applications
     }
 
+    public func addExcludedWord(_ word: String) -> Bool {
+        guard ExcludedWords.add(word) else { return false }
+        excludedWords = ExcludedWords.words
+        return true
+    }
+
+    public func removeExcludedWord(_ word: String) {
+        ExcludedWords.remove(word)
+        excludedWords = ExcludedWords.words
+    }
+
+    public func resetExcludedWords() {
+        ExcludedWords.resetToDefaults()
+        excludedWords = ExcludedWords.words
+    }
+
+    public var runningApplications: [ExcludedApp] {
+        NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }
+            .compactMap { app in
+                guard let bid = app.bundleIdentifier, let name = app.localizedName else { return nil }
+                return ExcludedApp(bundleID: bid, name: name)
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
     private func handleKey(_ event: NSEvent) {
         if event.cgEvent?.getIntegerValueField(.eventSourceUserData) == KeyboardReplacement.eventTag { return }
         revision &+= 1
         doubleTap.keyPressed()
 
         // In-Place Selection Transcoder shortcut: Cmd + Shift + X (Option 1)
-        if event.modifierFlags.contains(.command) && event.modifierFlags.contains(.shift) {
+        if enableSelectionTranscoder && event.modifierFlags.contains(.command) && event.modifierFlags.contains(.shift) {
             if event.keyCode == 7 || event.charactersIgnoringModifiers?.lowercased() == "x" {
                 transcodeSelection()
                 return
@@ -280,13 +357,33 @@ public final class HeSwitchModel: ObservableObject {
             return
         }
 
-        // Backspace key: Option A (1-Tap Revert, No Session Blacklist)
+        // Backspace key handling based on configured SmartBackspaceMode
         if event.keyCode == 51 {
-            if let repair = lastAutoRepair,
-               keystrokesSinceRepair == 0,
-               Date().timeIntervalSince(repair.timestamp) < 2.0 {
-                undoLastAutoRepair(repair)
-                return
+            switch smartBackspaceMode {
+            case .disabled:
+                break
+
+            case .singleTap:
+                if let repair = lastAutoRepair,
+                   keystrokesSinceRepair == 0,
+                   Date().timeIntervalSince(repair.timestamp) < 2.0 {
+                    undoLastAutoRepair(repair)
+                    return
+                }
+
+            case .twoStage:
+                if let repair = lastAutoRepair,
+                   Date().timeIntervalSince(repair.timestamp) < 2.5 {
+                    if twoStageUndoArmed {
+                        undoLastAutoRepair(repair)
+                        twoStageUndoArmed = false
+                        return
+                    } else if keystrokesSinceRepair == 0 {
+                        // 1st Backspace: Arm undo, let normal backspace delete trailing space
+                        twoStageUndoArmed = true
+                        keystrokesSinceRepair = 1
+                    }
+                }
             }
             KeystrokeBuffer.shared.backspace()
             return

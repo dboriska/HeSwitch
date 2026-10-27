@@ -288,6 +288,12 @@ curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh |
   - **Capitalized English Words on Hebrew Layout**: Converts words starting with Shift / uppercase Latin (`Wישא` ➔ `What`, `Hקךךם` ➔ `Hello`, `Pךקשדק` ➔ `Please`, `Hם׳` ➔ `How`, `Tישמלד` ➔ `Thanks`), preserving capitalization.
   - **Smart Backspace (Option A)**: 1-Tap instant revert on auto-repair without any session blacklist. Words are never permanently blocked.
   - **In-Place Selection Transcoder (Option 1 - `Cmd + Shift + X`)**: Highlight any sentence or paragraph in any macOS app (or Menu Bar item) to transcode between Hebrew and English in-place, preserving whitespace, punctuation, and layout.
+- **`v1.0.8` (Auto-Updater, Excluded Words List & Enhanced Settings):**
+  - **Auto-Updater (`AppUpdater.swift`)**: In-app GitHub release checker and 1-click update installer with automated download, extraction, quarantine clearing, and relaunch.
+  - **Excluded Words (Blacklist)**: Dedicated user list of words that HeSwitch will never convert under any circumstance (defaulting to `ls`, `cd`, `rm`, `cp`, `mv`, `ps`, etc.).
+  - **Running Applications Exclusions Picker**: Live "+ Add Running Application…" dropdown menu in Settings.
+  - **Configurable Backspace Behaviors**: Settings switch between 1-Tap Undo, Two-Stage Undo, and Disabled.
+  - **New Settings Architecture**: 6 structured tabs (General, Behavior, Shortcuts, Exclusions, Custom Words, Updates).
 
 ---
 
@@ -297,7 +303,7 @@ Analysis of reference applications (**Punto Switcher**, **Caramba Switcher**, **
 
 | Feature | Reference Source | Status | Purpose & Mechanism |
 | :--- | :--- | :---: | :--- |
-| **1. Smart Backspace (`Option A`)** | Punto, Caramba | **Implemented in v1.0.7** | 1-Tap instant revert immediately after auto-repair with zero session blacklisting. |
+| **1. Smart Backspace (`Option A` / `Option B`)** | Punto, Caramba | **Implemented in v1.0.7 & v1.0.8** | Configurable 1-Tap or Two-Stage instant revert immediately after auto-repair with zero session blacklisting. |
 | **2. Selection Converter (`Cmd + Shift + X`)** | LangOver, Ne-To | **Implemented in v1.0.7** | Select any paragraph or sentence, press `⌘⇧X` to invert language in-place (with universal clipboard fallback). |
 | **3. Trackpad Haptic Feedback** | Ne-To | Planned (Tier 1) | Subtle `NSHapticFeedbackManager` tactile tap on trackpad when layout flips silently. |
 | **4. Spotlight / URL Bar Autocomplete Guard** | Keyboop | Planned (Tier 1) | Check `kAXSelectedTextAttribute` so backspace doesn't delete active autocompletions in Chrome/Safari/Spotlight. |
@@ -305,5 +311,5 @@ Analysis of reference applications (**Punto Switcher**, **Caramba Switcher**, **
 | **6. BiDi Reversed Hebrew Fixer** | LangOver (ReverseIt) | Planned (Tier 2) | Inverts character order for Hebrew in non-RTL apps (Photoshop, CAD, subtitle editors) where `שלום` displays as `םולש`. |
 | **7. Dynamic Carbon `UCKeyTranslate`** | Keyboop | Planned (Tier 2) | Dynamically queries active layout map from macOS Carbon API to automatically support Hebrew - PC and phonetic layouts. |
 | **8. Native Vector Menu Bar Icon** | Native macOS | Planned (Tier 3) | Minimal dual-language template glyph (`A / א`) matching dark/light mode with live visual indicator. |
-| **9. In-App Auto-Update Checker** | Native / Sparkle | Planned (Tier 3) | GUI button in Settings checking GitHub API for seamless single-click update. |
+| **9. In-App Auto-Update Checker** | Native / Sparkle | **Implemented in v1.0.8** | 1-Click update check and seamless background installer via GitHub Releases API. |
 

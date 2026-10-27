@@ -6,9 +6,11 @@ public enum DecisionEngine {
         let lower = word.lowercased()
         guard word.count >= 2, word.count <= 40,
               !CustomDictionary.contains(word),
+              !ExcludedWords.contains(word),
               !AmbiguousCollisions.isAmbiguousCollision(word),
               lower != HeSwitchModel.shared.temporarilySuppressedWord,
-              let conversion = LayoutConversion.convert(word) else { return nil }
+              let conversion = LayoutConversion.convert(word),
+              !ExcludedWords.contains(conversion.output) else { return nil }
 
         // Converted word must be mostly letters or legitimate Hebrew punctuation (geresh, gershayim)
         let isValidTargetChars = conversion.output.allSatisfy { char in
