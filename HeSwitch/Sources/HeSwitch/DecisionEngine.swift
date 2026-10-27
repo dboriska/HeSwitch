@@ -20,6 +20,13 @@ public enum DecisionEngine {
 
         let targetLower = conversion.output.lowercased()
 
+        // Check if capitalized English transcoding is disabled
+        let isMixedScript = word.unicodeScalars.contains { (0x0041...0x005A).contains($0.value) || (0x0061...0x007A).contains($0.value) } &&
+                            word.unicodeScalars.contains { (0x0590...0x05FF).contains($0.value) || $0.value == 0x05F3 }
+        if isMixedScript && !HeSwitchModel.shared.convertCapitalizedEnglish {
+            return nil
+        }
+
         let checker = NSSpellChecker.shared
         let sourceLang = language(for: conversion.source, available: checker.availableLanguages)
         let targetLang = language(for: conversion.target, available: checker.availableLanguages)

@@ -91,7 +91,7 @@ public enum LayoutConversion {
 
         // 2. Capitalized English typed in Hebrew layout (e.g. "Wישא" -> "What", "Hקךךם" -> "Hello", "Pךקשדק" -> "Please")
         // Or English prefix with Hebrew keys: "ho׳" -> "how"
-        if HeSwitchModel.shared.convertCapitalizedEnglish && enLetterCount > 0 && heLetterCount > 0 {
+        if enLetterCount > 0 && heLetterCount > 0 {
             var candidateEn = ""
             candidateEn.reserveCapacity(text.count)
             for ch in text {
