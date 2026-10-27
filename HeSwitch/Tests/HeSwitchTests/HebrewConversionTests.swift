@@ -31,6 +31,7 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertEqual(LayoutConversion.convert("בםגק")?.output, "code")
         XCTAssertEqual(LayoutConversion.convert("ין")?.output, "hi")
         XCTAssertEqual(LayoutConversion.convert("שמג")?.output, "and")
+        XCTAssertEqual(LayoutConversion.convert("שגג")?.output, "add")
         XCTAssertEqual(LayoutConversion.convert("׳ישא")?.output, "what")
         XCTAssertEqual(LayoutConversion.convert("'ישא")?.output, "what")
         XCTAssertEqual(LayoutConversion.convert("ים׳")?.output, "how")
@@ -54,6 +55,7 @@ final class HebrewConversionTests: XCTestCase {
 
     func testHighFrequencyVocabulary() {
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("and", language: .english))
+        XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("add", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("what", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("how", language: .english))
         XCTAssertTrue(HighFrequencyVocabulary.isHighFrequency("world", language: .english))

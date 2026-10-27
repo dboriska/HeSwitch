@@ -63,7 +63,14 @@ BUNDLED_HIGH_FREQ_EN = {
     "wish", "woman", "women", "wrong", "web", "warn", "wear", "weather", "welcome",
     "west", "western", "whose", "whole", "worth", "few", "show", "slow", "flow",
     "grow", "draw", "view", "window", "between", "power", "tower", "allow", "follow",
-    "below", "own", "down", "town", "code", "test", "hello", "world", "true", "false"
+    "below", "own", "down", "town", "code", "test", "hello", "world", "true", "false",
+    "add", "are", "app", "ask", "all", "key", "pay", "set", "put", "run", "log", "fix",
+    "bug", "dev", "prod", "api", "url", "id", "cmd", "dir", "save", "load", "init", "info",
+    "edit", "list", "item", "menu", "icon", "port", "host", "link", "path", "send", "auth",
+    "type", "call", "sync", "done", "task", "date", "card", "page", "clean", "build", "start",
+    "stop", "error", "debug", "release", "version", "install", "update", "upgrade", "delete",
+    "remove", "create", "select", "insert", "search", "replace", "change", "switch", "toggle",
+    "enable", "disable", "input", "output", "import", "export", "upload", "download"
 }
 
 BUNDLED_HIGH_FREQ_HE = {
