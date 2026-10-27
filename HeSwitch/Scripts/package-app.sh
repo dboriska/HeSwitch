@@ -61,7 +61,7 @@ echo "==> Signing HeSwitch.app with identity: ${SIGNING_IDENTITY}..."
 # Use a static designated requirement to ensure TCC permissions survive updates across rebuilds
 codesign --force --deep --sign "${SIGNING_IDENTITY}" \
   --identifier "com.hebrew.HeSwitch" \
-  -r="designated => identifier \"com.hebrew.HeSwitch\" and anchor adhoc" \
+  -r="designated => identifier \"com.hebrew.HeSwitch\"" \
   "${APP_DIR}"
 
 echo "==> Packaging complete: ${APP_DIR}"
