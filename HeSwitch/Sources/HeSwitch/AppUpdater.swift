@@ -15,7 +15,7 @@ public enum UpdateState: Equatable {
 public final class AppUpdater: ObservableObject {
     public static let shared = AppUpdater()
 
-    public static let currentVersion = "v1.0.9"
+    public static let currentVersion = "v1.0.10"
     private static let repo = "dboriska/HeSwitch"
 
     @Published public private(set) var state: UpdateState = .idle
@@ -114,12 +114,13 @@ public final class AppUpdater: ObservableObject {
                 }
 
                 // Asynchronous update helper: waits for current process to exit,
-                // replaces /Applications/HeSwitch.app, strips quarantine flag, and launches the updated version.
+                // replaces /Applications/HeSwitch.app using ditto (preserving code signature metadata and permissions),
+                // strips quarantine flag, and launches the updated version.
                 let updateScript = """
                 sleep 0.8
                 rm -rf /Applications/HeSwitch.app
-                cp -R "\(extractedApp.path)" /Applications/HeSwitch.app
-                xattr -cr /Applications/HeSwitch.app
+                /usr/bin/ditto "\(extractedApp.path)" /Applications/HeSwitch.app
+                /usr/bin/xattr -cr /Applications/HeSwitch.app
                 open /Applications/HeSwitch.app
                 """
 

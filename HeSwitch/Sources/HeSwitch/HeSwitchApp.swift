@@ -227,51 +227,111 @@ public final class HeSwitchModel: ObservableObject {
         hasInputMonitoringAccess = CGPreflightListenEventAccess()
     }
 
+    public func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    public func openInputMonitoringSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    public func revealInFinder() {
+        let appPath = FileManager.default.fileExists(atPath: "/Applications/HeSwitch.app")
+            ? "/Applications/HeSwitch.app"
+            : Bundle.main.bundlePath
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: appPath)])
+    }
+
     public func requestPermissions() {
-        let options = ["AXTrustedCheckOptionPrompt" as CFString: true] as CFDictionary
-        let trusted = AXIsProcessTrustedWithOptions(options)
+        // Temporarily activate as regular app so macOS does not suppress the system permission prompt
+        let currentPolicy = NSApp.activationPolicy()
+        if currentPolicy != .regular {
+            NSApp.setActivationPolicy(.regular)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        let trusted = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
         hasAccessibilityAccess = trusted
-        if !trusted {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                NSWorkspace.shared.open(url)
+
+        if !CGPreflightListenEventAccess() {
+            _ = CGRequestListenEventAccess()
+        }
+        hasInputMonitoringAccess = CGPreflightListenEventAccess()
+
+        // Reveal HeSwitch.app in Finder so user can drag-and-drop into System Settings if missing
+        revealInFinder()
+        openAccessibilitySettings()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            if currentPolicy != .regular {
+                NSApp.setActivationPolicy(currentPolicy)
             }
         }
     }
 
-    /// Self-healing automated permission reset: clears quarantine and resets TCC cache
+    /// Self-healing automated permission reset: clears quarantine, resets TCC cache,
+    /// reveals app in Finder side-by-side with System Settings, and guides the user if app is missing from dialog
     public func resetPermissionsAndQuarantine() {
-        let bundlePath = Bundle.main.bundlePath
+        let appPath = FileManager.default.fileExists(atPath: "/Applications/HeSwitch.app")
+            ? "/Applications/HeSwitch.app"
+            : Bundle.main.bundlePath
 
-        // 1. Clear quarantine on current running bundle
+        // 1. Clear quarantine on application bundle
         let xattr = Process()
         xattr.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
-        xattr.arguments = ["-cr", bundlePath]
+        xattr.arguments = ["-cr", appPath]
         try? xattr.run()
         xattr.waitUntilExit()
 
-        // 2. Also clear quarantine on /Applications/HeSwitch.app
-        if bundlePath != "/Applications/HeSwitch.app" && FileManager.default.fileExists(atPath: "/Applications/HeSwitch.app") {
-            let xattrApp = Process()
-            xattrApp.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
-            xattrApp.arguments = ["-cr", "/Applications/HeSwitch.app"]
-            try? xattrApp.run()
-            xattrApp.waitUntilExit()
-        }
-
-        // 3. Reset TCC accessibility database for com.hebrew.HeSwitch
+        // 2. Reset TCC accessibility database for com.hebrew.HeSwitch
         let tcc = Process()
         tcc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
         tcc.arguments = ["reset", "Accessibility", "com.hebrew.HeSwitch"]
         try? tcc.run()
         tcc.waitUntilExit()
 
-        // 4. Trigger permission prompt
-        let options = ["AXTrustedCheckOptionPrompt" as CFString: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
+        // 3. Temporarily activate as regular app so macOS does not suppress security prompts
+        let currentPolicy = NSApp.activationPolicy()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
 
-        // 5. Open System Settings to Accessibility
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+        if !CGPreflightListenEventAccess() {
+            _ = CGRequestListenEventAccess()
+        }
+
+        // 4. Reveal HeSwitch.app in Finder side-by-side with System Settings
+        revealInFinder()
+        openAccessibilitySettings()
+
+        // 5. Present interactive guidance alert explaining how to add HeSwitch if missing from the dialog
+        let alert = NSAlert()
+        alert.messageText = "Enable HeSwitch in System Settings"
+        alert.informativeText = """
+        System Settings and Finder have been opened side-by-side.
+
+        If HeSwitch is not listed in Privacy & Security → Accessibility:
+        • Drag the highlighted 'HeSwitch.app' from Finder directly into the Accessibility list, OR
+        • Click the '+' button at the bottom of the list and select HeSwitch.app from Applications.
+
+        Once the toggle is ON, layout switching activates immediately.
+        """
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK, Got It")
+        alert.addButton(withTitle: "Open Input Monitoring Settings")
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn {
+            openInputMonitoringSettings()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            NSApp.setActivationPolicy(currentPolicy)
         }
 
         refreshPermissions()

@@ -21,7 +21,7 @@ mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}"
 cp "${BIN_PATH}" "${MACOS_DIR}/HeSwitch"
 chmod +x "${MACOS_DIR}/HeSwitch"
 
-APP_VERSION="${HESWITCH_VERSION:-1.0.9}"
+APP_VERSION="${HESWITCH_VERSION:-1.0.10}"
 
 cat > "${CONTENTS_DIR}/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -58,6 +58,10 @@ EOF
 
 SIGNING_IDENTITY="${HESWITCH_SIGNING_IDENTITY:--}"
 echo "==> Signing HeSwitch.app with identity: ${SIGNING_IDENTITY}..."
-codesign --force --deep --sign "${SIGNING_IDENTITY}" --identifier "com.hebrew.HeSwitch" "${APP_DIR}"
+# Use a static designated requirement to ensure TCC permissions survive updates across rebuilds
+codesign --force --deep --sign "${SIGNING_IDENTITY}" \
+  --identifier "com.hebrew.HeSwitch" \
+  -r="designated => identifier \"com.hebrew.HeSwitch\" and anchor adhoc" \
+  "${APP_DIR}"
 
 echo "==> Packaging complete: ${APP_DIR}"

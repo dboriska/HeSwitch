@@ -59,7 +59,7 @@ if [[ -d "${DEST_PATH}" ]]; then
     rm -rf "${DEST_PATH}"
 fi
 
-cp -R "${TMP_DIR}/${APP_NAME}" "/Applications/"
+ditto "${TMP_DIR}/${APP_NAME}" "${DEST_PATH}"
 
 echo "==> [HeSwitch] Removing macOS quarantine flag (prevents App Translocation)..."
 xattr -cr "${DEST_PATH}"
@@ -70,12 +70,16 @@ tccutil reset Accessibility "${BUNDLE_ID}" 2>/dev/null || true
 echo "==> [HeSwitch] Launching ${DEST_PATH}..."
 open "${DEST_PATH}"
 
-echo "==> [HeSwitch] Opening System Settings -> Privacy & Security -> Accessibility..."
+echo "==> [HeSwitch] Opening System Settings & revealing in Finder..."
+open -R "${DEST_PATH}"
 open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 
 echo ""
 echo "================================================================================"
 echo " HeSwitch ${VERSION_TAG} installed successfully!"
-echo " IMPORTANT: In the System Settings window that just opened,"
-echo " make sure the toggle next to 'HeSwitch' is turned ON."
+echo " IMPORTANT: In the System Settings window that just opened:"
+echo " 1. Look for 'HeSwitch' in Privacy & Security → Accessibility and turn it ON."
+echo " 2. If 'HeSwitch' is NOT in the list, drag 'HeSwitch.app' from the Finder window"
+echo "    directly into the Accessibility list, or click '+' and select HeSwitch."
+echo "================================================================================"
 echo "================================================================================"

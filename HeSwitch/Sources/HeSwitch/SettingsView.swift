@@ -67,10 +67,38 @@ public struct SettingsView: View {
                         .foregroundColor(model.hasAccessibilityAccess ? .green : .red)
                 }
 
+                HStack {
+                    Text("Input Monitoring Access:")
+                    Spacer()
+                    Text(model.hasInputMonitoringAccess ? "Granted ✓" : "Missing ✗")
+                        .foregroundColor(model.hasInputMonitoringAccess ? .green : .red)
+                }
+
                 if !model.hasRequiredAccess {
-                    Button("Grant System Permissions…") {
-                        model.requestPermissions()
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("⚠️ Permissions Needed")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                        Text("If HeSwitch does not appear in System Settings, click 'Reveal in Finder' and drag HeSwitch.app into the Accessibility list, or click the '+' button in System Settings.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        HStack {
+                            Button("Grant Permissions…") {
+                                model.requestPermissions()
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            Button("Reveal in Finder") {
+                                model.revealInFinder()
+                            }
+
+                            Button("Open Settings") {
+                                model.openAccessibilitySettings()
+                            }
+                        }
                     }
+                    .padding(.vertical, 4)
                 }
 
                 Button(action: {
@@ -78,9 +106,9 @@ public struct SettingsView: View {
                 }) {
                     Label("Reset & Fix Permissions (Automated)", systemImage: "arrow.counterclockwise.circle")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
 
-                Text("Removes macOS quarantine flag and resets stale TCC accessibility cache. Recommended if macOS keeps asking for permission after an update.")
+                Text("Removes macOS quarantine flag, resets stale TCC cache, and reveals HeSwitch in Finder side-by-side with System Settings so you can easily enable it.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
