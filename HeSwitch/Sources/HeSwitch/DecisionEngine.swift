@@ -2,12 +2,55 @@ import AppKit
 
 @MainActor
 public enum DecisionEngine {
-    public static func candidate(for word: String) -> Conversion? {
+    public enum ScriptContext {
+        case hebrew
+        case english
+        case neutral
+    }
+
+    public static func scriptOfContext(_ context: String?) -> ScriptContext {
+        guard let context = context, !context.isEmpty else { return .neutral }
+        let lastLine = context.components(separatedBy: .newlines).last ?? context
+        let trimmed = lastLine.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return .neutral }
+
+        var hebrewCount = 0
+        var englishCount = 0
+
+        for scalar in trimmed.unicodeScalars {
+            if (0x0590...0x05FF).contains(scalar.value) || scalar.value == 0x05F3 || scalar.value == 0x05F4 {
+                hebrewCount += 1
+            } else if (0x0041...0x005A).contains(scalar.value) || (0x0061...0x007A).contains(scalar.value) {
+                englishCount += 1
+            }
+        }
+
+        if hebrewCount > englishCount {
+            return .hebrew
+        } else if englishCount > hebrewCount {
+            return .english
+        } else {
+            return .neutral
+        }
+    }
+
+    public static func isCliCommandContext(_ context: String?) -> Bool {
+        guard let context = context else { return false }
+        let lastLine = context.components(separatedBy: .newlines).last ?? context
+        let tokens = lastLine.split { $0.isWhitespace }.map(String.init)
+        guard let firstToken = tokens.first?.lowercased() else { return false }
+        let cliCommands: Set<String> = [
+            "cat", "vim", "vi", "nano", "touch", "code", "open", "less", "more",
+            "head", "tail", "echo", "grep", "mv", "cp", "rm", "git", "ls"
+        ]
+        return cliCommands.contains(firstToken)
+    }
+
+    public static func candidate(for word: String, context: String? = nil, isTerminalApp: Bool = false) -> Conversion? {
         let lower = word.lowercased()
         guard word.count >= 2, word.count <= 40,
               !CustomDictionary.contains(word),
               !ExcludedWords.contains(word),
-              !AmbiguousCollisions.isAmbiguousCollision(word),
               lower != HeSwitchModel.shared.temporarilySuppressedWord,
               let conversion = LayoutConversion.convert(word),
               !ExcludedWords.contains(conversion.output) else { return nil }
@@ -25,6 +68,45 @@ public enum DecisionEngine {
                             word.unicodeScalars.contains { (0x0590...0x05FF).contains($0.value) || $0.value == 0x05F3 || $0.value == 0x05F4 }
         if isMixedScript && !HeSwitchModel.shared.convertCapitalizedEnglish {
             return nil
+        }
+
+        // --- Dual-Language Ambiguous Collision & Line Context Script Coherence ---
+        let isAmbiguous = AmbiguousCollisions.isAmbiguousCollision(word) ||
+                          AmbiguousCollisions.isAmbiguousCollision(conversion.output)
+
+        if isAmbiguous {
+            // Special rule: Markdown file extension or CLI command for 'צג' -> 'md'
+            if lower == "צג" {
+                if context?.hasSuffix(".") == true || word.hasPrefix(".") || isCliCommandContext(context) || isTerminalApp {
+                    return conversion
+                }
+            }
+
+            let lineScript = scriptOfContext(context)
+            switch lineScript {
+            case .hebrew:
+                // Preceding line context is Hebrew: continue on Hebrew without changing!
+                if conversion.source == .english {
+                    // Accidental English typing in a Hebrew sentence (e.g. "שלום, tbh" -> "אני", "קניתי md" -> "צג", "רוצה to" -> "אם")
+                    return conversion
+                } else {
+                    // Word was typed in Hebrew in a Hebrew sentence (e.g. "קניתי צג", "אני פה", "אם תרצה") -> Keep in Hebrew!
+                    return nil
+                }
+            case .english:
+                // Preceding line context is English: continue on English without changing!
+                if conversion.source == .hebrew {
+                    // Accidental Hebrew typing in an English sentence (e.g. "I think אני" -> "tbh", "check צג" -> "md", "want אם" -> "to")
+                    return conversion
+                } else {
+                    // Word was typed in English in an English sentence (e.g. "tbh I agree", "I want to go") -> Keep in English!
+                    return nil
+                }
+            case .neutral:
+                // Standalone / first word of line with no script context:
+                // Keep the typed language to prevent false positives in isolation!
+                return nil
+            }
         }
 
         let checker = NSSpellChecker.shared
@@ -76,8 +158,9 @@ public enum DecisionEngine {
         var convertedTokens: [String] = []
         var repairCount = 0
 
-        for token in tokens {
-            if let conv = candidate(for: token) {
+        for (index, token) in tokens.enumerated() {
+            let preceding = tokens[..<index].joined(separator: " ")
+            if let conv = candidate(for: token, context: preceding.isEmpty ? phrase : preceding) {
                 convertedTokens.append(conv.output)
                 repairCount += 1
             } else if let conv = LayoutConversion.convert(token) {

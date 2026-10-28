@@ -30,8 +30,9 @@ HE_TO_EN["'"] = 'w'
 HE_TO_EN['’'] = 'w'
 
 AMBIGUOUS_COLLISIONS = {
-    "to", "do", "go", "so", "no", "an", "ha", "nut",
-    "אם", "גם", "עם", "דם", "נם", "שם", "יש", "הוא"
+    "to", "do", "go", "so", "no", "an", "ha", "as", "re", "bang", "nut", "bar", "car", "in",
+    "אם", "גם", "עם", "דם", "נם", "שם", "יש", "שד", "רק", "נשמע", "הוא", "נשר", "בשר", "ןמ",
+    "md", "צג", "tbh", "אני"
 }
 
 HIGH_FREQ_EN = {
@@ -52,7 +53,8 @@ HIGH_FREQ_EN = {
     "grow", "draw", "view", "window", "windows", "between", "power", "tower", "allow", "follow",
     "below", "own", "down", "town", "code", "test", "hello", "world", "true", "false",
     "hi", "hey", "yes", "ok", "bye", "is", "am", "are", "been", "has", "had", "did",
-    "does", "got", "morning", "night", "thanks", "please", "google", "israel"
+    "does", "got", "morning", "night", "thanks", "please", "google", "israel",
+    "md", "tbh"
 }
 
 HIGH_FREQ_HE = {
@@ -64,7 +66,21 @@ HIGH_FREQ_HE = {
     "צריך", "יכול", "היה", "היו", "יהיה", "רואה", "שומע", "הולך", "בא", "יוצא",
     "צה\"ל", "ת\"א", "חו\"ל", "ארה\"ב", "מנכ\"ל", "עו\"ד", "דו\"ח", "בד\"כ", "צ'יפס", "צ׳יפס",
     "צה״ל", "ת״א", "חו״ל", "ארה״ב", "מנכ״ל", "עו״ד", "דו״ח", "בד״כ",
-    "ח\"כ", "ח״כ", "ש\"ח", "ש״ח", "תנ\"ך", "תנ״ך", "רוה\"מ", "רוה״מ"
+    "ח\"כ", "ח״כ", "ש\"ח", "ש״ח", "תנ\"ך", "תנ״ך", "רוה\"מ", "רוה״מ",
+    "אני", "אנכי", "אתם", "אתן",
+    "לי", "לך", "לו", "לה", "לנו", "לכם", "לכן", "להם", "להן",
+    "אותי", "אותך", "אותו", "אותה", "אותנו", "אתכם", "אתכן", "אותם", "אותן",
+    "שלי", "שלך", "שלו", "שלה", "שלנו", "שלכם", "שלכן", "שלהם", "שלהן",
+    "בי", "בך", "בו", "בה", "בנו", "בכם", "בכן", "בהם", "בהן",
+    "אלי", "אליי", "אליך", "אליו", "אליה", "אלינו", "אליכם", "אליכן", "אליהם", "אליהן",
+    "עלי", "עליי", "עליך", "עליו", "עליה", "עלינו", "עליכם", "עליכן", "עליהם", "עליהן",
+    "איתי", "איתך", "איתו", "איתה", "איתנו", "איתכם", "איתכן", "איתם", "איתן",
+    "ממני", "ממך", "ממנו", "ממנה", "מאיתנו", "מכם", "מכן", "מהם", "מהן",
+    "של", "על", "אל", "אם", "עם", "או", "אבל", "כי", "יש", "אין", "כבר",
+    "תמיד", "אולי", "בטח", "כאן", "פה", "שם", "אז", "כדי", "כמו", "עד",
+    "לפני", "אחרי", "בין", "מאוד", "הרבה", "קצת", "יותר", "פחות", "אחר",
+    "הייתי", "היית", "היינו", "תהיה", "יהיו", "עושה", "מבין", "חושב", "אומר",
+    "צג", "מסך", "טלפון", "חלון", "קובץ", "שורה", "מילה"
 }
 
 COMMON_CONTRACTIONS = {
@@ -204,18 +220,62 @@ def convert_layout(text: str) -> Optional[ConversionResult]:
         target_lang=target_lang
     )
 
-def decision_engine_candidate(word: str) -> Optional[ConversionResult]:
-    """Simulates DecisionEngine logic including high frequency fast-paths and spellcheck validation."""
-    if len(word) < 2 or len(word) > 40:
-        return None
+def script_of_context(context: Optional[str]) -> str:
+    if not context:
+        return "neutral"
+    last_line = context.splitlines()[-1] if context.splitlines() else context
+    trimmed = last_line.strip()
+    if not trimmed:
+        return "neutral"
+    heb = sum(1 for c in trimmed if 0x0590 <= ord(c) <= 0x05FF or c in "״׳")
+    eng = sum(1 for c in trimmed if c.isascii() and c.isalpha())
+    if heb > eng:
+        return "hebrew"
+    elif eng > heb:
+        return "english"
+    return "neutral"
 
-    # Ambiguous collisions (to, do, go, אם, גם) are never auto-converted
-    if word.lower() in AMBIGUOUS_COLLISIONS:
+def is_cli_command_context(context: Optional[str]) -> bool:
+    if not context:
+        return False
+    last_line = context.splitlines()[-1] if context.splitlines() else context
+    tokens = last_line.strip().split()
+    if not tokens:
+        return False
+    cli_commands = {
+        "cat", "vim", "vi", "nano", "touch", "code", "open", "less", "more",
+        "head", "tail", "echo", "grep", "mv", "cp", "rm", "git", "ls"
+    }
+    return tokens[0].lower() in cli_commands
+
+def decision_engine_candidate(word: str, context: Optional[str] = None, is_terminal: bool = False) -> Optional[ConversionResult]:
+    """Simulates DecisionEngine logic including high frequency fast-paths, script coherence and spellcheck validation."""
+    if len(word) < 2 or len(word) > 40:
         return None
 
     conversion = convert_layout(word)
     if not conversion:
         return None
+
+    # Ambiguous collisions with Line Context Script Coherence:
+    is_ambiguous = (word.lower() in AMBIGUOUS_COLLISIONS) or (conversion.output_text.lower() in AMBIGUOUS_COLLISIONS)
+    if is_ambiguous:
+        if word.lower() == "צג":
+            if (context and context.endswith(".")) or word.startswith(".") or is_cli_command_context(context) or is_terminal:
+                return conversion
+        script = script_of_context(context)
+        if script == "hebrew":
+            if conversion.source_lang == "EN":
+                return conversion
+            else:
+                return None
+        elif script == "english":
+            if conversion.source_lang == "HE":
+                return conversion
+            else:
+                return None
+        else:
+            return None
 
     target_lower = conversion.output_text.lower()
     source_lower = word.lower()
@@ -253,6 +313,7 @@ class TestCase:
     typed_token: str
     expected_switch: bool
     expected_result: str
+    context: Optional[str] = None
 
 def generate_test_corpus() -> List[TestCase]:
     cases: List[TestCase] = []
@@ -415,7 +476,7 @@ def generate_test_corpus() -> List[TestCase]:
     for intended, typed in correct_he:
         cases.append(TestCase("Correct Hebrew (No Switch)", intended, typed, False, intended))
 
-    # Category 8: Ambiguous collisions (MUST NOT SWITCH)
+    # Category 8: Ambiguous collisions in isolation (MUST NOT SWITCH)
     ambiguous = [
         ("to", "to"),
         ("do", "do"),
@@ -424,9 +485,41 @@ def generate_test_corpus() -> List[TestCase]:
         ("אם", "אם"),
         ("גם", "גם"),
         ("עם", "עם"),
+        ("md", "md"),
+        ("צג", "צג"),
+        ("tbh", "tbh"),
+        ("אני", "אני"),
     ]
     for intended, typed in ambiguous:
         cases.append(TestCase("Ambiguous Collisions (No Switch)", intended, typed, False, intended))
+
+    # Category 8b: Contextual Script Coherence
+    contextual_cases = [
+        # In Hebrew line context, accidental English switches to Hebrew:
+        ("אני", "tbh", True, "אני", "שלום, "),
+        ("צג", "md", True, "צג", "קניתי "),
+        ("אם", "to", True, "אם", "אני רוצה "),
+        ("גם", "do", True, "גם", "אני "),
+        # In Hebrew line context, correct Hebrew stays Hebrew:
+        ("אני", "אני", False, "אני", "שלום, "),
+        ("צג", "צג", False, "צג", "קניתי "),
+        ("אם", "אם", False, "אם", "אני רוצה "),
+        ("גם", "גם", False, "גם", "אני "),
+        # In English line context, accidental Hebrew switches to English:
+        ("tbh", "אני", True, "tbh", "I think "),
+        ("to", "אם", True, "to", "I want "),
+        ("do", "גם", True, "do", "what should I "),
+        # In English line context, correct English stays English:
+        ("tbh", "tbh", False, "tbh", "I think "),
+        ("to", "to", False, "to", "I want "),
+        ("do", "do", False, "do", "what should I "),
+        # Markdown & CLI conversions:
+        ("md", "צג", True, "md", "cat "),
+        ("md", "צג", True, "md", "vim "),
+        ("md", "צג", True, "md", "README."),
+    ]
+    for intended, typed, expected_switch, expected_result, ctx in contextual_cases:
+        cases.append(TestCase("Contextual Script Coherence", intended, typed, expected_switch, expected_result, context=ctx))
 
     # Category 9: Numbers and Decimals (MUST NOT SWITCH)
     numbers = [
@@ -474,7 +567,7 @@ def run_simulation(num_random_trials: int = 2000) -> Dict[str, any]:
             category_stats[cat] = {"total": 0, "passed": 0, "failed": 0}
         category_stats[cat]["total"] += 1
 
-        candidate = decision_engine_candidate(case.typed_token)
+        candidate = decision_engine_candidate(case.typed_token, context=case.context)
         actual_switched = candidate is not None
         actual_output = candidate.output_text if candidate else case.typed_token
 

@@ -134,6 +134,16 @@ public final class HeSwitchModel: ObservableObject {
 
     public var hasRequiredAccess: Bool { hasAccessibilityAccess }
 
+    public static func isTerminal(bundleID: String?) -> Bool {
+        guard let bundleID = bundleID?.lowercased() else { return false }
+        return bundleID.contains("terminal") ||
+               bundleID.contains("iterm") ||
+               bundleID.contains("warp") ||
+               bundleID.contains("kitty") ||
+               bundleID.contains("alacritty") ||
+               bundleID.contains("hyper")
+    }
+
     private let keyboard = KeyboardLayoutService()
     private let soundPlayer = SwitchSoundPlayer()
     private var keyMonitor: Any?
@@ -543,7 +553,18 @@ public final class HeSwitchModel: ObservableObject {
         // 1. Preferred path: Accessible text field (TextEdit, Safari, Notes, Mail, etc.)
         if let snapshot = FocusedText.read(), snapshot.processID == processID, snapshot.selection.length == 0 {
             let candidateWord = WordBoundary.precedingWord(in: snapshot.prefix, allowDelimiter: true) ?? completedWordFromBuffer
-            guard let word = candidateWord, let conversion = DecisionEngine.candidate(for: word) else { return }
+            let lineContext: String? = {
+                guard let candidateWord = candidateWord else { return nil }
+                let trimmed = snapshot.prefix.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.hasSuffix(candidateWord) {
+                    let preceding = String(trimmed.dropLast(candidateWord.count))
+                    return preceding.components(separatedBy: .newlines).last
+                }
+                return snapshot.prefix.components(separatedBy: .newlines).last
+            }()
+            let bundleID = NSRunningApplication(processIdentifier: processID)?.bundleIdentifier
+            let isTerm = HeSwitchModel.isTerminal(bundleID: bundleID)
+            guard let word = candidateWord, let conversion = DecisionEngine.candidate(for: word, context: lineContext, isTerminalApp: isTerm) else { return }
 
             let targetRange = NSRange(location: max(0, snapshot.selection.location - word.utf16.count - delimiter.utf16.count), length: word.utf16.count)
 
@@ -590,7 +611,10 @@ public final class HeSwitchModel: ObservableObject {
         // 2. Terminal / CLI / Non-accessible apps path (Terminal, iTerm2, Alacritty, Warp)
         guard let rawWord = completedWordFromBuffer, !rawWord.isEmpty else { return }
         let word = WordBoundary.extractFileExtension(from: rawWord) ?? rawWord
-        guard let conversion = DecisionEngine.candidate(for: word) else { return }
+        let bundleID = NSRunningApplication(processIdentifier: processID)?.bundleIdentifier
+        let isTerm = HeSwitchModel.isTerminal(bundleID: bundleID)
+        let lineContext = KeystrokeBuffer.shared.lineContext
+        guard let conversion = DecisionEngine.candidate(for: word, context: lineContext, isTerminalApp: isTerm) else { return }
 
         // In terminals, send backspaces for the word + delimiter, then type the converted word + delimiter
         KeyboardReplacement.replace(backspaces: word.utf16.count + delimiter.utf16.count, with: conversion.output + delimiter)
@@ -709,8 +733,9 @@ public final class HeSwitchModel: ObservableObject {
         }
 
         // Try recent completed word repair
+        let lineContext = snapshot.prefix.components(separatedBy: .newlines).last
         for candidate in WordBoundary.recentCompletedWords(in: snapshot.prefix) {
-            guard let conversion = DecisionEngine.candidate(for: candidate.word) else { continue }
+            guard let conversion = DecisionEngine.candidate(for: candidate.word, context: lineContext) else { continue }
             let location = snapshot.selection.location - candidate.trailing.utf16.count - candidate.word.utf16.count
             guard location >= 0 else { continue }
             let range = NSRange(location: location, length: candidate.word.utf16.count)

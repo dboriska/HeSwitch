@@ -170,6 +170,10 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("go"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("re"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("bang"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("md"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("צג"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("tbh"))
+        XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("אני"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("אם"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("גם"))
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("עם"))
@@ -177,6 +181,65 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertTrue(AmbiguousCollisions.isAmbiguousCollision("נשמע"))
         XCTAssertFalse(AmbiguousCollisions.isAmbiguousCollision("hello"))
         XCTAssertFalse(AmbiguousCollisions.isAmbiguousCollision("שלום"))
+    }
+
+    func testScriptCoherenceContext() {
+        XCTAssertEqual(DecisionEngine.scriptOfContext("שלום לכולם "), .hebrew)
+        XCTAssertEqual(DecisionEngine.scriptOfContext("hello world "), .english)
+        XCTAssertEqual(DecisionEngine.scriptOfContext(""), .neutral)
+        XCTAssertEqual(DecisionEngine.scriptOfContext("   "), .neutral)
+        XCTAssertEqual(DecisionEngine.scriptOfContext("12345 "), .neutral)
+        XCTAssertTrue(DecisionEngine.isCliCommandContext("cat README."))
+        XCTAssertTrue(DecisionEngine.isCliCommandContext("vim notes."))
+        XCTAssertFalse(DecisionEngine.isCliCommandContext("שלום קובץ."))
+    }
+
+    func testContextualAmbiguousConversions() {
+        // 1. Hebrew line context continues in Hebrew:
+        // When typing English layout by mistake in Hebrew context, convert to Hebrew:
+        XCTAssertEqual(DecisionEngine.candidate(for: "tbh", context: "שלום, ")?.output, "אני")
+        XCTAssertEqual(DecisionEngine.candidate(for: "md", context: "קניתי ")?.output, "צג")
+        XCTAssertEqual(DecisionEngine.candidate(for: "to", context: "אני רוצה ")?.output, "אם")
+        XCTAssertEqual(DecisionEngine.candidate(for: "do", context: "אני ")?.output, "גם")
+        XCTAssertEqual(DecisionEngine.candidate(for: "go", context: "אני בא ")?.output, "עם")
+        XCTAssertEqual(DecisionEngine.candidate(for: "re", context: "זה ")?.output, "רק")
+
+        // When typing Hebrew in Hebrew context, keep Hebrew (DO NOT convert to English):
+        XCTAssertNil(DecisionEngine.candidate(for: "אני", context: "שלום, "))
+        XCTAssertNil(DecisionEngine.candidate(for: "צג", context: "קניתי "))
+        XCTAssertNil(DecisionEngine.candidate(for: "אם", context: "אני רוצה "))
+        XCTAssertNil(DecisionEngine.candidate(for: "גם", context: "אני "))
+        XCTAssertNil(DecisionEngine.candidate(for: "עם", context: "אני בא "))
+        XCTAssertNil(DecisionEngine.candidate(for: "רק", context: "זה "))
+
+        // 2. English line context continues in English:
+        // When typing English in English context, keep English (DO NOT convert to Hebrew):
+        XCTAssertNil(DecisionEngine.candidate(for: "tbh", context: "I think "))
+        XCTAssertNil(DecisionEngine.candidate(for: "to", context: "I want "))
+        XCTAssertNil(DecisionEngine.candidate(for: "do", context: "what should I "))
+        XCTAssertNil(DecisionEngine.candidate(for: "go", context: "let us "))
+
+        // When typing Hebrew by mistake in English context, convert to English:
+        XCTAssertEqual(DecisionEngine.candidate(for: "אני", context: "I think ")?.output, "tbh")
+        XCTAssertEqual(DecisionEngine.candidate(for: "צג", context: "Check the ")?.output, "md")
+        XCTAssertEqual(DecisionEngine.candidate(for: "אם", context: "I want ")?.output, "to")
+        XCTAssertEqual(DecisionEngine.candidate(for: "גם", context: "what should I ")?.output, "do")
+        XCTAssertEqual(DecisionEngine.candidate(for: "עם", context: "let us ")?.output, "go")
+
+        // 3. Special Markdown .צג / CLI conversions:
+        XCTAssertEqual(DecisionEngine.candidate(for: "צג", context: "cat ")?.output, "md")
+        XCTAssertEqual(DecisionEngine.candidate(for: "צג", context: "vim ")?.output, "md")
+        XCTAssertEqual(DecisionEngine.candidate(for: "צג", context: "README.")?.output, "md")
+        XCTAssertEqual(DecisionEngine.candidate(for: "צג", context: "", isTerminalApp: true)?.output, "md")
+
+        // 4. Standalone / Neutral context (First word of line):
+        // Protect legitimate words in isolation:
+        XCTAssertNil(DecisionEngine.candidate(for: "אני", context: ""))
+        XCTAssertNil(DecisionEngine.candidate(for: "tbh", context: ""))
+        XCTAssertNil(DecisionEngine.candidate(for: "אם", context: ""))
+        XCTAssertNil(DecisionEngine.candidate(for: "to", context: ""))
+        XCTAssertNil(DecisionEngine.candidate(for: "גם", context: ""))
+        XCTAssertNil(DecisionEngine.candidate(for: "do", context: ""))
     }
 
     func testExcludedWords() {

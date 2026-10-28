@@ -15,7 +15,7 @@ public enum UpdateState: Equatable {
 public final class AppUpdater: ObservableObject {
     public static let shared = AppUpdater()
 
-    public static let currentVersion = "v1.0.10"
+    public static let currentVersion = "v1.0.11"
     private static let repo = "dboriska/HeSwitch"
 
     @Published public private(set) var state: UpdateState = .idle
