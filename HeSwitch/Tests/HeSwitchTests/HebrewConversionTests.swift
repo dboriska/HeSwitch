@@ -1,6 +1,7 @@
 import XCTest
 @testable import HeSwitch
 
+@MainActor
 final class HebrewConversionTests: XCTestCase {
     func testEnglishToHebrewConversions() {
         XCTAssertEqual(LayoutConversion.convert("akuo")?.output, "שלום")

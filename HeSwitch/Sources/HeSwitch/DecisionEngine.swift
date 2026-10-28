@@ -8,7 +8,7 @@ public enum DecisionEngine {
         case neutral
     }
 
-    public static func scriptOfContext(_ context: String?) -> ScriptContext {
+    public nonisolated static func scriptOfContext(_ context: String?) -> ScriptContext {
         guard let context = context, !context.isEmpty else { return .neutral }
         let lastLine = context.components(separatedBy: .newlines).last ?? context
         let trimmed = lastLine.trimmingCharacters(in: .whitespaces)
@@ -34,7 +34,7 @@ public enum DecisionEngine {
         }
     }
 
-    public static func isCliCommandContext(_ context: String?) -> Bool {
+    public nonisolated static func isCliCommandContext(_ context: String?) -> Bool {
         guard let context = context else { return false }
         let lastLine = context.components(separatedBy: .newlines).last ?? context
         let tokens = lastLine.split { $0.isWhitespace }.map(String.init)
