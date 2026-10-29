@@ -21,7 +21,7 @@ mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}"
 cp "${BIN_PATH}" "${MACOS_DIR}/HeSwitch"
 chmod +x "${MACOS_DIR}/HeSwitch"
 
-APP_VERSION="${HESWITCH_VERSION:-1.0.12}"
+APP_VERSION="${HESWITCH_VERSION:-1.0.13}"
 
 cat > "${CONTENTS_DIR}/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>

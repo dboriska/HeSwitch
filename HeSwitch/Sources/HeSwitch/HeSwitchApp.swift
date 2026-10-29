@@ -89,8 +89,7 @@ struct HeSwitchApp: App {
                 }
 
                 Button("Settings…") {
-                    NSApp.activate(ignoringOtherApps: true)
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    SettingsWindowManager.shared.show(model: model)
                 }
 
                 Button("Quit HeSwitch") {
@@ -231,6 +230,12 @@ public final class HeSwitchModel: ObservableObject {
         if updater.autoCheckOnLaunch {
             updater.checkForUpdates(silent: true)
         }
+
+        SettingsWindowManager.setupMainMenuIfNeeded()
+    }
+
+    public func showSettings() {
+        SettingsWindowManager.shared.show(model: self)
     }
 
     public func refreshPermissions() {
