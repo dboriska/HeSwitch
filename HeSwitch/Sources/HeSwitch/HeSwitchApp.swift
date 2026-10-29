@@ -166,6 +166,7 @@ public final class HeSwitchModel: ObservableObject {
         didSet { UserDefaults.standard.set(enableSelectionTranscoder, forKey: "enableSelectionTranscoder") }
     }
     @Published public private(set) var excludedWords = ExcludedWords.words
+    @Published public private(set) var excludedWordItems = ExcludedWords.items
 
     // Smart Backspace state
     private var lastAutoRepair: AutoRepairRecord?
@@ -382,20 +383,23 @@ public final class HeSwitchModel: ObservableObject {
         excludedApplications = ApplicationExclusions.applications
     }
 
-    public func addExcludedWord(_ word: String) -> Bool {
-        guard ExcludedWords.add(word) else { return false }
+    public func addExcludedWord(_ word: String, language: ExclusionLanguage = .any) -> Bool {
+        guard ExcludedWords.add(word, language: language) else { return false }
         excludedWords = ExcludedWords.words
+        excludedWordItems = ExcludedWords.items
         return true
     }
 
-    public func removeExcludedWord(_ word: String) {
-        ExcludedWords.remove(word)
+    public func removeExcludedWord(_ word: String, language: ExclusionLanguage? = nil) {
+        ExcludedWords.remove(word, language: language)
         excludedWords = ExcludedWords.words
+        excludedWordItems = ExcludedWords.items
     }
 
     public func resetExcludedWords() {
         ExcludedWords.resetToDefaults()
         excludedWords = ExcludedWords.words
+        excludedWordItems = ExcludedWords.items
     }
 
     public var runningApplications: [ExcludedApp] {
@@ -437,7 +441,7 @@ public final class HeSwitchModel: ObservableObject {
                 if let repair = lastAutoRepair,
                    keystrokesSinceRepair == 0,
                    Date().timeIntervalSince(repair.timestamp) < 2.0 {
-                    undoLastAutoRepair(repair)
+                    undoLastAutoRepair(repair, isTwoStage: false)
                     return
                 }
 
@@ -445,7 +449,7 @@ public final class HeSwitchModel: ObservableObject {
                 if let repair = lastAutoRepair,
                    Date().timeIntervalSince(repair.timestamp) < 2.5 {
                     if twoStageUndoArmed {
-                        undoLastAutoRepair(repair)
+                        undoLastAutoRepair(repair, isTwoStage: true)
                         twoStageUndoArmed = false
                         return
                     } else if keystrokesSinceRepair == 0 {
@@ -636,7 +640,7 @@ public final class HeSwitchModel: ObservableObject {
     }
 
     /// Reverts the most recent automatic repair and switches layout back (Smart Backspace Option A)
-    private func undoLastAutoRepair(_ repair: AutoRepairRecord) {
+    private func undoLastAutoRepair(_ repair: AutoRepairRecord, isTwoStage: Bool = false) {
         lastAutoRepair = nil
         // Only suppress immediate re-trigger on this exact occurrence until next delimiter.
         // DO NOT add to any session blacklist!
@@ -647,17 +651,36 @@ public final class HeSwitchModel: ObservableObject {
 
         if let snapshot = FocusedText.read(), snapshot.processID == processID {
             let combined = repair.convertedOutput + repair.delimiter
-            if snapshot.prefix.hasSuffix(combined) {
-                let range = NSRange(location: max(0, snapshot.selection.location - combined.utf16.count), length: combined.utf16.count)
-                reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput)
-            } else if snapshot.prefix.hasSuffix(repair.convertedOutput) {
+            if snapshot.prefix.hasSuffix(repair.convertedOutput) {
+                // The physical backspace has already deleted the trailing delimiter in the target application
                 let range = NSRange(location: max(0, snapshot.selection.location - repair.convertedOutput.utf16.count), length: repair.convertedOutput.utf16.count)
                 reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput)
+            } else if snapshot.prefix.hasSuffix(combined) {
+                // If the target app hasn't processed the backspace yet and still ends with the delimiter,
+                // replace with originalInput + delimiter so the pending physical backspace deletes the delimiter!
+                let range = NSRange(location: max(0, snapshot.selection.location - combined.utf16.count), length: combined.utf16.count)
+                reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput + repair.delimiter)
+            } else if isTwoStage {
+                let dropped = String(repair.convertedOutput.dropLast())
+                if !dropped.isEmpty && snapshot.prefix.hasSuffix(dropped) {
+                    let range = NSRange(location: max(0, snapshot.selection.location - dropped.utf16.count), length: dropped.utf16.count)
+                    reverted = snapshot.replaceDirectly(range: range, with: repair.originalInput)
+                }
             }
         }
 
         if !reverted {
-            KeyboardReplacement.replace(backspaces: repair.convertedOutput.utf16.count + repair.delimiter.utf16.count, with: repair.originalInput)
+            // Because the user pressed backspace, the target app's event queue has already consumed the delimiter!
+            // We only need to delete the characters of convertedOutput. Sending extra backspaces would delete the preceding space!
+            let backspacesToSend: Int
+            if isTwoStage {
+                // In two-stage mode, 1st backspace deleted delimiter, 2nd backspace deleted 1 char of convertedOutput
+                backspacesToSend = max(0, repair.convertedOutput.utf16.count - 1)
+            } else {
+                // In single-tap mode, the user's backspace deleted the delimiter. Exactly convertedOutput characters remain.
+                backspacesToSend = repair.convertedOutput.utf16.count
+            }
+            KeyboardReplacement.replace(backspaces: backspacesToSend, with: repair.originalInput)
         }
 
         keyboard.select(repair.originalLayout)

@@ -5,6 +5,8 @@ public struct SettingsView: View {
     @ObservedObject var model: HeSwitchModel
     @State private var newCustomWord = ""
     @State private var newExcludedWord = ""
+    @State private var selectedExclusionLang: ExclusionLanguage = .english
+    @State private var exclusionFilter: ExclusionLanguage? = nil
     @State private var exclusionSubTab = 0 // 0: Excluded Words, 1: Excluded Apps
 
     public init(model: HeSwitchModel) {
@@ -195,40 +197,96 @@ public struct SettingsView: View {
             .pickerStyle(.segmented)
 
             if exclusionSubTab == 0 {
-                Text("These words will NEVER be converted automatically under any circumstance:")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("These words will NEVER be converted automatically when typed in the specified language:")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
 
-                HStack {
-                    TextField("Add word to ignore (e.g. CLI command or name)", text: $newExcludedWord)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Add") {
-                        if model.addExcludedWord(newExcludedWord) {
-                            newExcludedWord = ""
-                        }
-                    }
-                    .disabled(newExcludedWord.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                    Button("Reset Defaults") {
-                        model.resetExcludedWords()
-                    }
-                }
-
-                List {
-                    ForEach(model.excludedWords, id: \.self) { word in
-                        HStack {
-                            Text(word)
-                                .font(.system(.body, design: .monospaced))
-                            Spacer()
-                            Button(action: { model.removeExcludedWord(word) }) {
-                                Image(systemName: "trash")
-                                    .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        TextField("Word to ignore (e.g. ls, git, דג)", text: $newExcludedWord)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: newExcludedWord) { newValue in
+                                if newValue.unicodeScalars.contains(where: { (0x0590...0x05FF).contains($0.value) }) {
+                                    selectedExclusionLang = .hebrew
+                                } else if newValue.unicodeScalars.contains(where: { $0.isASCII && $0.isLetter }) {
+                                    selectedExclusionLang = .english
+                                }
                             }
-                            .buttonStyle(.plain)
+
+                        Picker("", selection: $selectedExclusionLang) {
+                            Text("English").tag(ExclusionLanguage.english)
+                            Text("Hebrew").tag(ExclusionLanguage.hebrew)
+                            Text("Both").tag(ExclusionLanguage.any)
+                        }
+                        .frame(width: 95)
+
+                        Button("Add") {
+                            if model.addExcludedWord(newExcludedWord, language: selectedExclusionLang) {
+                                newExcludedWord = ""
+                            }
+                        }
+                        .disabled(newExcludedWord.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                        Button("Reset Defaults") {
+                            model.resetExcludedWords()
                         }
                     }
+
+                    HStack(spacing: 6) {
+                        Text("Filter:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Button("All (\(model.excludedWordItems.count))") {
+                            exclusionFilter = nil
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(exclusionFilter == nil ? .accentColor : .secondary)
+                        .controlSize(.small)
+
+                        Button("English (\(model.excludedWordItems.filter { $0.language == .english || $0.language == .any }.count))") {
+                            exclusionFilter = .english
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(exclusionFilter == .english ? .blue : .secondary)
+                        .controlSize(.small)
+
+                        Button("Hebrew (\(model.excludedWordItems.filter { $0.language == .hebrew || $0.language == .any }.count))") {
+                            exclusionFilter = .hebrew
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(exclusionFilter == .hebrew ? .orange : .secondary)
+                        .controlSize(.small)
+                    }
+
+                    let filteredItems = model.excludedWordItems.filter { item in
+                        guard let filter = exclusionFilter else { return true }
+                        return item.language == filter || item.language == .any
+                    }
+
+                    List {
+                        ForEach(filteredItems) { item in
+                            HStack {
+                                Text(item.word)
+                                    .font(.system(.body, design: .monospaced))
+                                Spacer()
+                                Text(item.language.badge)
+                                    .font(.caption2.bold())
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(badgeColor(for: item.language))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(4)
+                                Button(action: { model.removeExcludedWord(item.word, language: item.language) }) {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
             } else {
                 Text("Automatic repair is disabled in these applications:")
                     .font(.footnote)
@@ -410,6 +468,14 @@ public struct SettingsView: View {
                 }
                 .buttonStyle(.bordered)
             }
+        }
+    }
+
+    private func badgeColor(for lang: ExclusionLanguage) -> Color {
+        switch lang {
+        case .english: return .blue
+        case .hebrew: return .orange
+        case .any: return .gray
         }
     }
 }

@@ -50,10 +50,10 @@ public enum DecisionEngine {
         let lower = word.lowercased()
         guard word.count >= 2, word.count <= 40,
               !CustomDictionary.contains(word),
-              !ExcludedWords.contains(word),
               lower != HeSwitchModel.shared.temporarilySuppressedWord,
               let conversion = LayoutConversion.convert(word),
-              !ExcludedWords.contains(conversion.output) else { return nil }
+              !ExcludedWords.isExcluded(word, language: conversion.source),
+              !ExcludedWords.isExcluded(conversion.output, language: conversion.target) else { return nil }
 
         // Converted word must be mostly letters or legitimate Hebrew punctuation (geresh, gershayim, hyphen)
         let isValidTargetChars = conversion.output.allSatisfy { char in

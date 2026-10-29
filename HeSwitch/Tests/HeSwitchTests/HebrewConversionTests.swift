@@ -249,10 +249,24 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertTrue(ExcludedWords.contains("rm"))
         XCTAssertFalse(ExcludedWords.contains("hello"))
 
-        XCTAssertTrue(ExcludedWords.add("testword"))
+        // Default CLI commands are excluded for English layout
+        XCTAssertTrue(ExcludedWords.isExcluded("ls", language: .english))
+        XCTAssertFalse(ExcludedWords.isExcluded("ls", language: .hebrew))
+
+        // Add Hebrew-specific exclusion
+        XCTAssertTrue(ExcludedWords.add("דג", language: .hebrew))
+        XCTAssertTrue(ExcludedWords.isExcluded("דג", language: .hebrew))
+        XCTAssertFalse(ExcludedWords.isExcluded("דג", language: .english))
+
+        // Add generic exclusion
+        XCTAssertTrue(ExcludedWords.add("testword", language: .any))
+        XCTAssertTrue(ExcludedWords.isExcluded("testword", language: .english))
+        XCTAssertTrue(ExcludedWords.isExcluded("testword", language: .hebrew))
         XCTAssertTrue(ExcludedWords.contains("testword"))
+
         ExcludedWords.remove("testword")
         XCTAssertFalse(ExcludedWords.contains("testword"))
+        ExcludedWords.remove("דג")
     }
 
     func testWordBoundaryExtraction() {
