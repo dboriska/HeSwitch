@@ -82,6 +82,22 @@ public enum DecisionEngine {
                 }
             }
 
+            // Special rule for 'kph' <-> 'לפי':
+            // 'לפי' is an exceptionally common Hebrew word ("according to", "by") and frequent sentence starter.
+            // In English, 'kph' (kilometers per hour) is only used after a number (e.g. "100 kph") or in English context.
+            if lower == "kph" {
+                let lineScript = scriptOfContext(context)
+                if lineScript == .english {
+                    return nil
+                }
+                let trimmed = context?.trimmingCharacters(in: .whitespaces) ?? ""
+                if let lastToken = trimmed.split(whereSeparator: { $0.isWhitespace }).last,
+                   lastToken.contains(where: { $0.isNumber }) {
+                    return nil
+                }
+                return conversion
+            }
+
             let lineScript = scriptOfContext(context)
             switch lineScript {
             case .hebrew:

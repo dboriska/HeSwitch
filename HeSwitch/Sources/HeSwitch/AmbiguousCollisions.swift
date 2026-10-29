@@ -7,7 +7,7 @@ public enum AmbiguousCollisions {
     public static let blockedIsolatedSwaps: Set<String> = [
         "to", "do", "go", "so", "no", "an", "ha", "as", "re", "bang", "nut", "bar", "car", "in",
         "אם", "גם", "עם", "דם", "נם", "שם", "יש", "שד", "רק", "נשמע", "הוא", "נשר", "בשר", "ןמ",
-        "md", "צג", "tbh", "אני"
+        "md", "צג", "tbh", "אני", "kph", "לפי"
     ]
 
     /// Returns true if an automatic swap should be suppressed to avoid false positives.

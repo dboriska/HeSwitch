@@ -96,7 +96,7 @@ BUNDLED_HIGH_FREQ_HE = {
     "ממני", "ממך", "ממנו", "ממנה", "מאיתנו", "מכם", "מכן", "מהם", "מהן",
     "של", "על", "אל", "אם", "עם", "או", "אבל", "כי", "יש", "אין", "כבר",
     "תמיד", "אולי", "בטח", "כאן", "פה", "שם", "אז", "כדי", "כמו", "עד",
-    "לפני", "אחרי", "בין", "מאוד", "הרבה", "קצת", "יותר", "פחות", "אחר",
+    "לפי", "לפיו", "לפיה", "לפיכך", "לפני", "אחרי", "בין", "מאוד", "הרבה", "קצת", "יותר", "פחות", "אחר",
     "הייתי", "היית", "היינו", "תהיה", "יהיו", "עושה", "מבין", "חושב", "אומר",
     "צג", "מסך", "טלפון", "חלון", "קובץ", "שורה", "מילה"
 }
@@ -251,6 +251,10 @@ class DecisionEngineSimulator:
         source_lower = word.lower()
         target_lower = conversion.output_text.lower()
         contains_hebrew_punct_keys = any(c in ",.;'" for c in word)
+
+        # Special fast-path for kph -> לפי (kph is km/h in English, practically never typed standalone)
+        if source_lower == "kph":
+            return conversion
 
         # 1. English words that are already correctly spelled without Hebrew punctuation keys must NEVER be converted!
         if conversion.source_lang == "EN":

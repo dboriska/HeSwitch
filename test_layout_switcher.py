@@ -32,7 +32,7 @@ HE_TO_EN['’'] = 'w'
 AMBIGUOUS_COLLISIONS = {
     "to", "do", "go", "so", "no", "an", "ha", "as", "re", "bang", "nut", "bar", "car", "in",
     "אם", "גם", "עם", "דם", "נם", "שם", "יש", "שד", "רק", "נשמע", "הוא", "נשר", "בשר", "ןמ",
-    "md", "צג", "tbh", "אני"
+    "md", "צג", "tbh", "אני", "kph", "לפי"
 }
 
 HIGH_FREQ_EN = {
@@ -78,7 +78,7 @@ HIGH_FREQ_HE = {
     "ממני", "ממך", "ממנו", "ממנה", "מאיתנו", "מכם", "מכן", "מהם", "מהן",
     "של", "על", "אל", "אם", "עם", "או", "אבל", "כי", "יש", "אין", "כבר",
     "תמיד", "אולי", "בטח", "כאן", "פה", "שם", "אז", "כדי", "כמו", "עד",
-    "לפני", "אחרי", "בין", "מאוד", "הרבה", "קצת", "יותר", "פחות", "אחר",
+    "לפי", "לפיו", "לפיה", "לפיכך", "לפני", "אחרי", "בין", "מאוד", "הרבה", "קצת", "יותר", "פחות", "אחר",
     "הייתי", "היית", "היינו", "תהיה", "יהיו", "עושה", "מבין", "חושב", "אומר",
     "צג", "מסך", "טלפון", "חלון", "קובץ", "שורה", "מילה"
 }
@@ -263,6 +263,15 @@ def decision_engine_candidate(word: str, context: Optional[str] = None, is_termi
         if word.lower() == "צג":
             if (context and context.endswith(".")) or word.startswith(".") or is_cli_command_context(context) or is_terminal:
                 return conversion
+        if word.lower() == "kph":
+            script = script_of_context(context)
+            if script == "english":
+                return None
+            trimmed = context.strip() if context else ""
+            tokens = trimmed.split()
+            if tokens and any(c.isdigit() for c in tokens[-1]):
+                return None
+            return conversion
         script = script_of_context(context)
         if script == "hebrew":
             if conversion.source_lang == "EN":
@@ -489,6 +498,7 @@ def generate_test_corpus() -> List[TestCase]:
         ("צג", "צג"),
         ("tbh", "tbh"),
         ("אני", "אני"),
+        ("לפי", "לפי"),
     ]
     for intended, typed in ambiguous:
         cases.append(TestCase("Ambiguous Collisions (No Switch)", intended, typed, False, intended))
@@ -500,19 +510,25 @@ def generate_test_corpus() -> List[TestCase]:
         ("צג", "md", True, "צג", "קניתי "),
         ("אם", "to", True, "אם", "אני רוצה "),
         ("גם", "do", True, "גם", "אני "),
+        ("לפי", "kph", True, "לפי", "שלום, "),
+        ("לפי", "kph", True, "לפי", ""),
         # In Hebrew line context, correct Hebrew stays Hebrew:
         ("אני", "אני", False, "אני", "שלום, "),
         ("צג", "צג", False, "צג", "קניתי "),
         ("אם", "אם", False, "אם", "אני רוצה "),
         ("גם", "גם", False, "גם", "אני "),
+        ("לפי", "לפי", False, "לפי", "שלום, "),
         # In English line context, accidental Hebrew switches to English:
         ("tbh", "אני", True, "tbh", "I think "),
         ("to", "אם", True, "to", "I want "),
         ("do", "גם", True, "do", "what should I "),
+        ("kph", "לפי", True, "kph", "speed is 100 "),
         # In English line context, correct English stays English:
         ("tbh", "tbh", False, "tbh", "I think "),
         ("to", "to", False, "to", "I want "),
         ("do", "do", False, "do", "what should I "),
+        ("kph", "kph", False, "kph", "speed is 100 "),
+        ("kph", "kph", False, "kph", "100 "),
         # Markdown & CLI conversions:
         ("md", "צג", True, "md", "cat "),
         ("md", "צג", True, "md", "vim "),

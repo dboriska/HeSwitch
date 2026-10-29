@@ -200,6 +200,7 @@ final class HebrewConversionTests: XCTestCase {
         // When typing English layout by mistake in Hebrew context, convert to Hebrew:
         XCTAssertEqual(DecisionEngine.candidate(for: "tbh", context: "שלום, ")?.output, "אני")
         XCTAssertEqual(DecisionEngine.candidate(for: "md", context: "קניתי ")?.output, "צג")
+        XCTAssertEqual(DecisionEngine.candidate(for: "kph", context: "שלום, ")?.output, "לפי")
         XCTAssertEqual(DecisionEngine.candidate(for: "to", context: "אני רוצה ")?.output, "אם")
         XCTAssertEqual(DecisionEngine.candidate(for: "do", context: "אני ")?.output, "גם")
         XCTAssertEqual(DecisionEngine.candidate(for: "go", context: "אני בא ")?.output, "עם")
@@ -208,6 +209,7 @@ final class HebrewConversionTests: XCTestCase {
         // When typing Hebrew in Hebrew context, keep Hebrew (DO NOT convert to English):
         XCTAssertNil(DecisionEngine.candidate(for: "אני", context: "שלום, "))
         XCTAssertNil(DecisionEngine.candidate(for: "צג", context: "קניתי "))
+        XCTAssertNil(DecisionEngine.candidate(for: "לפי", context: "שלום, "))
         XCTAssertNil(DecisionEngine.candidate(for: "אם", context: "אני רוצה "))
         XCTAssertNil(DecisionEngine.candidate(for: "גם", context: "אני "))
         XCTAssertNil(DecisionEngine.candidate(for: "עם", context: "אני בא "))
@@ -219,10 +221,13 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertNil(DecisionEngine.candidate(for: "to", context: "I want "))
         XCTAssertNil(DecisionEngine.candidate(for: "do", context: "what should I "))
         XCTAssertNil(DecisionEngine.candidate(for: "go", context: "let us "))
+        XCTAssertNil(DecisionEngine.candidate(for: "kph", context: "speed is 100 "))
+        XCTAssertNil(DecisionEngine.candidate(for: "kph", context: "100 "))
 
         // When typing Hebrew by mistake in English context, convert to English:
         XCTAssertEqual(DecisionEngine.candidate(for: "אני", context: "I think ")?.output, "tbh")
         XCTAssertEqual(DecisionEngine.candidate(for: "צג", context: "Check the ")?.output, "md")
+        XCTAssertEqual(DecisionEngine.candidate(for: "לפי", context: "speed was 100 ")?.output, "kph")
         XCTAssertEqual(DecisionEngine.candidate(for: "אם", context: "I want ")?.output, "to")
         XCTAssertEqual(DecisionEngine.candidate(for: "גם", context: "what should I ")?.output, "do")
         XCTAssertEqual(DecisionEngine.candidate(for: "עם", context: "let us ")?.output, "go")
@@ -241,6 +246,11 @@ final class HebrewConversionTests: XCTestCase {
         XCTAssertNil(DecisionEngine.candidate(for: "to", context: ""))
         XCTAssertNil(DecisionEngine.candidate(for: "גם", context: ""))
         XCTAssertNil(DecisionEngine.candidate(for: "do", context: ""))
+        XCTAssertNil(DecisionEngine.candidate(for: "לפי", context: ""))
+        // 'kph' at start of line converts to 'לפי' because English sentences never start with 'kph',
+        // whereas 'לפי' is a dominant Hebrew sentence starter:
+        XCTAssertEqual(DecisionEngine.candidate(for: "kph", context: "")?.output, "לפי")
+        XCTAssertEqual(DecisionEngine.candidate(for: "kph", context: nil)?.output, "לפי")
     }
 
     func testExcludedWords() {
