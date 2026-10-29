@@ -207,9 +207,9 @@ public struct SettingsView: View {
                             get: { newExcludedWord },
                             set: { val in
                                 newExcludedWord = val
-                                if val.unicodeScalars.contains(where: { (0x0590...0x05FF).contains($0.value) }) {
+                                if val.contains(where: { LayoutConversion.isHebrew($0) }) {
                                     selectedExclusionLang = .hebrew
-                                } else if val.unicodeScalars.contains(where: { $0.isASCII && $0.isLetter }) {
+                                } else if val.contains(where: { $0.isASCII && $0.isLetter }) {
                                     selectedExclusionLang = .english
                                 }
                             }
