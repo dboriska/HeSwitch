@@ -203,15 +203,18 @@ public struct SettingsView: View {
                         .foregroundColor(.secondary)
 
                     HStack(spacing: 8) {
-                        TextField("Word to ignore (e.g. ls, git, דג)", text: $newExcludedWord)
-                            .textFieldStyle(.roundedBorder)
-                            .onChange(of: newExcludedWord) { newValue in
-                                if newValue.unicodeScalars.contains(where: { (0x0590...0x05FF).contains($0.value) }) {
+                        TextField("Word to ignore (e.g. ls, git, דג)", text: Binding(
+                            get: { newExcludedWord },
+                            set: { val in
+                                newExcludedWord = val
+                                if val.unicodeScalars.contains(where: { (0x0590...0x05FF).contains($0.value) }) {
                                     selectedExclusionLang = .hebrew
-                                } else if newValue.unicodeScalars.contains(where: { $0.isASCII && $0.isLetter }) {
+                                } else if val.unicodeScalars.contains(where: { $0.isASCII && $0.isLetter }) {
                                     selectedExclusionLang = .english
                                 }
                             }
+                        ))
+                        .textFieldStyle(.roundedBorder)
 
                         Picker("", selection: $selectedExclusionLang) {
                             Text("English").tag(ExclusionLanguage.english)
