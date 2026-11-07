@@ -102,7 +102,11 @@ struct HeSwitchApp: App {
                 model.start()
             }
         } label: {
-            Text(model.currentLayout?.rawValue ?? "EN/HE")
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.left.arrow.right")
+                Text(model.currentLayout?.rawValue ?? "EN/HE")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+            }
         }
         .menuBarExtraStyle(.window)
 
@@ -479,6 +483,7 @@ public final class HeSwitchModel: ObservableObject {
         // Navigation keys (Escape, Arrows)
         if [53, 123, 124, 125, 126].contains(event.keyCode) {
             KeystrokeBuffer.shared.clear()
+            temporarilySuppressedWord = nil
             return
         }
 
@@ -487,7 +492,6 @@ public final class HeSwitchModel: ObservableObject {
         let delimiter = isSpace ? " " : (isReturn ? "\n" : nil)
 
         if let delimiter {
-            temporarilySuppressedWord = nil // clear suppression as soon as user finishes word
             let completedFromBuffer = KeystrokeBuffer.shared.onDelimiter(delimiter)
             if automaticRepair && !event.isARepeat {
                 let processID = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -562,6 +566,11 @@ public final class HeSwitchModel: ObservableObject {
         // 1. Preferred path: Accessible text field (TextEdit, Safari, Notes, Mail, etc.)
         if let snapshot = FocusedText.read(), snapshot.processID == processID, snapshot.selection.length == 0 {
             let candidateWord = WordBoundary.precedingWord(in: snapshot.prefix, allowDelimiter: true) ?? completedWordFromBuffer
+            if let word = candidateWord {
+                if let suppressed = temporarilySuppressedWord, word.lowercased() != suppressed {
+                    temporarilySuppressedWord = nil
+                }
+            }
             let lineContext: String? = {
                 guard let candidateWord = candidateWord else { return nil }
                 let trimmed = snapshot.prefix.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -620,6 +629,9 @@ public final class HeSwitchModel: ObservableObject {
         // 2. Terminal / CLI / Non-accessible apps path (Terminal, iTerm2, Alacritty, Warp)
         guard let rawWord = completedWordFromBuffer, !rawWord.isEmpty else { return }
         let word = WordBoundary.extractFileExtension(from: rawWord) ?? rawWord
+        if let suppressed = temporarilySuppressedWord, word.lowercased() != suppressed {
+            temporarilySuppressedWord = nil
+        }
         let bundleID = NSRunningApplication(processIdentifier: processID)?.bundleIdentifier
         let isTerm = HeSwitchModel.isTerminal(bundleID: bundleID)
         let lineContext = KeystrokeBuffer.shared.lineContext

@@ -1,6 +1,6 @@
 # HeSwitch — Master Project Summary & Complete Recreation Blueprint
 
-> **Current Version:** `v1.0.14`  
+> **Current Version:** `v1.0.15`  
 > **Target OS:** macOS 14.0+ (Sonoma, Sequoia)  
 > **Language / Toolchain:** Swift 5.9+ (Swift Package Manager), Python 3.11+ (Test Suite managed with `uv`)  
 > **Application Type:** Native macOS Menu Bar Agent (`LSUIElement = 1`)  

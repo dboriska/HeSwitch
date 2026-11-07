@@ -425,7 +425,7 @@ def generate_test_corpus() -> List[TestCase]:
         "שלום", "בוקר", "טוב", "תודה", "בבקשה", "איך", "אנחנו", "איפה",
         "למה", "כמה", "מתי", "רוצה", "יודע", "עכשיו", "עבודה", "הודעה",
         "מחשב", "ישראל", "עברית", "אנגלית", "בסדר", "סבבה", "מצוין",
-        "רואה", "שומע", "הולך", "צריך", "יכול"
+        "רואה", "שומע", "הולך", "צריך", "יכול", "כן"
     ]
     for h in he_sample:
         typed = type_on_english_layout(h)
@@ -481,6 +481,7 @@ def generate_test_corpus() -> List[TestCase]:
         ("צה\"ל", "צה\"ל"),
         ("תודה", "תודה"),
         ("עבודה", "עבודה"),
+        ("כן", "כן"),
     ]
     for intended, typed in correct_he:
         cases.append(TestCase("Correct Hebrew (No Switch)", intended, typed, False, intended))

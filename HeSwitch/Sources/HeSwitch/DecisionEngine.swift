@@ -129,7 +129,14 @@ public enum DecisionEngine {
         let sourceLang = language(for: conversion.source, available: checker.availableLanguages)
         let targetLang = language(for: conversion.target, available: checker.availableLanguages)
 
-        let sourceIsCorrect = isCorrect(lower, language: sourceLang, checker: checker)
+        // Standalone English false-positive spellchecker exceptions:
+        // "fi" is recognized as an English word by NSSpellChecker (sci-fi, semper fi, etc.),
+        // but as a standalone word it almost always represents Hebrew "כן" (yes).
+        let isEnglishSpellcheckException = (conversion.source == .english && lower == "fi")
+        let sourceIsCorrect = !isEnglishSpellcheckException && (
+            isCorrect(lower, language: sourceLang, checker: checker) ||
+            HighFrequencyVocabulary.isHighFrequency(lower, language: conversion.source)
+        )
         let containsHebrewPunctuationKeys = word.contains(where: { ",.;'".contains($0) })
 
         // 1. English words that are already correctly spelled without Hebrew punctuation keys must NEVER be converted!

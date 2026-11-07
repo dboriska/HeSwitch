@@ -256,9 +256,13 @@ class DecisionEngineSimulator:
         if source_lower == "kph":
             return conversion
 
+        # Special fast-path for fi -> כן (fi is not a standalone English word, stands for Hebrew 'yes' / כן)
+        if source_lower == "fi":
+            return conversion
+
         # 1. English words that are already correctly spelled without Hebrew punctuation keys must NEVER be converted!
         if conversion.source_lang == "EN":
-            if (source_lower in self.en_vocab or source_lower in COMMON_CONTRACTIONS) and not contains_hebrew_punct_keys:
+            if (source_lower in self.en_vocab or source_lower in COMMON_CONTRACTIONS or source_lower in BUNDLED_HIGH_FREQ_EN) and not contains_hebrew_punct_keys:
                 return None
 
         # 2. High-frequency vocabulary fast-path:

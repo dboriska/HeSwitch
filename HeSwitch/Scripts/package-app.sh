@@ -21,7 +21,12 @@ mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}"
 cp "${BIN_PATH}" "${MACOS_DIR}/HeSwitch"
 chmod +x "${MACOS_DIR}/HeSwitch"
 
-APP_VERSION="${HESWITCH_VERSION:-1.0.14}"
+if [ -f "${ROOT_DIR}/Resources/AppIcon.icns" ]; then
+    echo "==> Copying AppIcon.icns..."
+    cp "${ROOT_DIR}/Resources/AppIcon.icns" "${RESOURCES_DIR}/AppIcon.icns"
+fi
+
+APP_VERSION="${HESWITCH_VERSION:-1.0.15}"
 
 cat > "${CONTENTS_DIR}/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -30,6 +35,8 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
 <dict>
     <key>CFBundleExecutable</key>
     <string>HeSwitch</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.hebrew.HeSwitch</string>
     <key>CFBundleName</key>

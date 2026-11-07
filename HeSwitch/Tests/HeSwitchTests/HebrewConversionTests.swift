@@ -251,6 +251,14 @@ final class HebrewConversionTests: XCTestCase {
         // whereas 'לפי' is a dominant Hebrew sentence starter:
         XCTAssertEqual(DecisionEngine.candidate(for: "kph", context: "")?.output, "לפי")
         XCTAssertEqual(DecisionEngine.candidate(for: "kph", context: nil)?.output, "לפי")
+
+        // 'fi' typed on English layout converts to Hebrew 'כן' ("yes")
+        XCTAssertEqual(DecisionEngine.candidate(for: "fi", context: "")?.output, "כן")
+        XCTAssertEqual(DecisionEngine.candidate(for: "fi", context: nil)?.output, "כן")
+        XCTAssertEqual(DecisionEngine.candidate(for: "Fi", context: nil)?.output, "כן")
+
+        // 'כן' typed on Hebrew layout must not convert to 'fi'
+        XCTAssertNil(DecisionEngine.candidate(for: "כן", context: nil))
     }
 
     func testExcludedWords() {
