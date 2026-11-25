@@ -42,9 +42,27 @@ public struct FocusedText {
         var valueRef: CFTypeRef?
         var rangeRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef) == .success,
-              let value = valueRef as? String,
-              AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
-              let rangeRef, CFGetTypeID(rangeRef) == AXValueGetTypeID() else { return nil }
+              let valueRef else {
+            CLILogger.debug("FocusedText.read: kAXValueAttribute copy failed")
+            return nil
+        }
+
+        // Support both plain String and NSAttributedString (used in rich text apps like Apple Notes)
+        let value: String
+        if let str = valueRef as? String {
+            value = str
+        } else if let attrStr = valueRef as? NSAttributedString {
+            value = attrStr.string
+        } else {
+            CLILogger.debug("FocusedText.read: kAXValueAttribute is neither String nor NSAttributedString")
+            return nil
+        }
+
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeRef) == .success,
+              let rangeRef, CFGetTypeID(rangeRef) == AXValueGetTypeID() else {
+            CLILogger.debug("FocusedText.read: kAXSelectedTextRangeAttribute copy failed")
+            return nil
+        }
 
         var selection = CFRange(location: 0, length: 0)
         guard AXValueGetValue(rangeRef as! AXValue, .cfRange, &selection),
@@ -111,8 +129,9 @@ public struct FocusedText {
         var verifiedCaret = CFRange(location: 0, length: 0)
 
         guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &actualValueRef) == .success,
-              let actualValue = actualValueRef as? String,
-              actualValue == expectedValue,
+              let actualValueRef else { return false }
+        let actualValue = (actualValueRef as? String) ?? (actualValueRef as? NSAttributedString)?.string
+        guard actualValue == expectedValue,
               AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &actualRangeRef) == .success,
               let actualRangeRef, CFGetTypeID(actualRangeRef) == AXValueGetTypeID(),
               AXValueGetValue(actualRangeRef as! AXValue, .cfRange, &verifiedCaret),
@@ -156,7 +175,9 @@ public struct FocusedText {
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == processID else { return }
         var actualValueRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &actualValueRef) == .success,
-              let actualValue = actualValueRef as? String, actualValue == value else { return }
+              let actualValueRef else { return }
+        let actualValue = (actualValueRef as? String) ?? (actualValueRef as? NSAttributedString)?.string
+        guard actualValue == value else { return }
         var caret = CFRange(location: selection.location, length: 0)
         if let caretValue = AXValueCreate(.cfRange, &caret) {
             AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, caretValue)

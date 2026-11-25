@@ -106,6 +106,30 @@ Move `dist/HeSwitch.app` to `/Applications` and launch it.
 
 ---
 
+## 💻 Terminal / CLI Diagnostic Switches
+
+HeSwitch can be executed directly from Terminal to test, debug, and diagnose macOS permissions, keyboard layouts, and real-time keystroke processing:
+
+```sh
+# Comprehensive system diagnostic (checks Accessibility, Input Monitoring, SecureInput lock, and keyboard layouts)
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --diagnose
+
+# Live foreground monitor mode (logs keystrokes, active window/element, and decisions in real-time)
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --verbose
+
+# Run self-test suite on linguistic algorithms and dictionaries
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --test
+
+# Test an individual word or phrase conversion from command line
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --convert "akuo"
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --convert "יקךךם"
+
+# Reset stale TCC accessibility cache and remove quarantine
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --reset-permissions
+```
+
+---
+
 ## 🔒 Permissions
 
 When running for the first time, macOS requires:

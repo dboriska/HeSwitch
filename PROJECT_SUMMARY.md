@@ -1,9 +1,9 @@
 # HeSwitch — Master Project Summary & Complete Recreation Blueprint
 
-> **Current Version:** `v1.0.15`  
+> **Current Version:** `v1.0.16`  
 > **Target OS:** macOS 14.0+ (Sonoma, Sequoia)  
 > **Language / Toolchain:** Swift 5.9+ (Swift Package Manager), Python 3.11+ (Test Suite managed with `uv`)  
-> **Application Type:** Native macOS Menu Bar Agent (`LSUIElement = 1`)  
+> **Application Type:** Native macOS Menu Bar Agent (`LSUIElement = 1`) & CLI Diagnostic Utility  
 > **GitHub Repository:** `https://github.com/dboriska/HeSwitch`
 
 ---
@@ -51,6 +51,8 @@ autoSwithc_he_eng/
             ├── AmbiguousCollisions.swift     # Registry of dual-language collisions (to/אם, do/גם, md/צג, kph/לפי)
             ├── AppUpdater.swift              # In-app background update checker and atomic updater
             ├── ApplicationExclusions.swift   # Bundle ID blacklist (IDE code editors, games, virtual machines)
+            ├── CLIHandler.swift              # Command line argument parser & system diagnostic runner
+            ├── CLILogger.swift               # Verbose real-time foreground event logger for terminal monitoring
             ├── CustomDictionary.swift        # User-defined custom words persisted in UserDefaults
             ├── DecisionEngine.swift          # Linguistic arbitration engine & script context analysis
             ├── DoubleTapDetector.swift       # Double-tap modifier detection (Double-Tap Shift)

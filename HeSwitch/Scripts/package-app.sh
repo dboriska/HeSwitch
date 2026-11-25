@@ -26,7 +26,7 @@ if [ -f "${ROOT_DIR}/Resources/AppIcon.icns" ]; then
     cp "${ROOT_DIR}/Resources/AppIcon.icns" "${RESOURCES_DIR}/AppIcon.icns"
 fi
 
-APP_VERSION="${HESWITCH_VERSION:-1.0.15}"
+APP_VERSION="${HESWITCH_VERSION:-1.0.16}"
 
 cat > "${CONTENTS_DIR}/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>

@@ -35,6 +35,12 @@ public enum SmartBackspaceMode: String, Codable, CaseIterable, Identifiable {
 struct HeSwitchApp: App {
     @StateObject private var model = HeSwitchModel.shared
 
+    init() {
+        if CLIHandler.handleCommandLineArguments() {
+            exit(0)
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             VStack(alignment: .leading, spacing: 10) {
@@ -584,6 +590,8 @@ public final class HeSwitchModel: ObservableObject {
             let isTerm = HeSwitchModel.isTerminal(bundleID: bundleID)
             guard let word = candidateWord, let conversion = DecisionEngine.candidate(for: word, context: lineContext, isTerminalApp: isTerm) else { return }
 
+            CLILogger.event("Auto-repair triggered for word '\(word)' (App: \(bundleID ?? "Unknown"))")
+
             let targetRange = NSRange(location: max(0, snapshot.selection.location - word.utf16.count - delimiter.utf16.count), length: word.utf16.count)
 
             // Try direct memory replacement
@@ -592,6 +600,7 @@ public final class HeSwitchModel: ObservableObject {
                 currentLayout = keyboard.currentLayout
                 statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
                 if playSound { soundPlayer.play() }
+                CLILogger.success("Replaced directly in memory: '\(word)' → '\(conversion.output)'")
 
                 self.lastAutoRepair = AutoRepairRecord(
                     originalInput: word,
@@ -606,12 +615,14 @@ public final class HeSwitchModel: ObservableObject {
                 return
             }
 
+            CLILogger.debug("Direct AX memory replacement failed; using keystroke fallback")
             // Fallback for fields where replaceDirectly fails (e.g. Electron apps, WebViews)
             KeyboardReplacement.replace(backspaces: word.utf16.count + delimiter.utf16.count, with: conversion.output + delimiter)
             keyboard.select(conversion.target)
             currentLayout = keyboard.currentLayout
             statusText = "Auto: \(conversion.source.rawValue) → \(conversion.target.rawValue)"
             if playSound { soundPlayer.play() }
+            CLILogger.success("Replaced via simulated keystrokes: '\(word)' → '\(conversion.output)'")
 
             self.lastAutoRepair = AutoRepairRecord(
                 originalInput: word,

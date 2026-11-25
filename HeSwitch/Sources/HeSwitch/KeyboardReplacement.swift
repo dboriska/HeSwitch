@@ -12,6 +12,11 @@ public enum KeyboardReplacement {
             postKey(0x33)
         }
 
+        // Brief micro-sleep to ensure backspaces are dispatched by macOS event queue
+        if backspaces > 0 {
+            usleep(1500)
+        }
+
         // Post Unicode string directly
         let units = Array(text.utf16)
         units.withUnsafeBufferPointer { buffer in
