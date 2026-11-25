@@ -20,10 +20,10 @@ SOURCE_APP=""
 
 # 1. Prefer building latest target version from source if swift compiler is available
 if command -v swift >/dev/null 2>&1; then
-    echo "==> [HeSwitch] Swift toolchain detected. Building ${TARGET_VERSION} from source..."
-    if git clone --depth=1 "https://github.com/${REPO}.git" "${TMP_DIR}/repo" 2>/dev/null; then
+    echo "==> [HeSwitch] Swift toolchain detected ($(swift --version | head -n 1)). Building ${TARGET_VERSION} from source..."
+    if git clone --depth=1 "https://github.com/${REPO}.git" "${TMP_DIR}/repo"; then
         cd "${TMP_DIR}/repo/HeSwitch"
-        if bash Scripts/package-app.sh >/dev/null 2>&1; then
+        if bash Scripts/package-app.sh; then
             CANDIDATE_APP="${TMP_DIR}/repo/HeSwitch/dist/${APP_NAME}"
             if [[ -d "${CANDIDATE_APP}" ]]; then
                 BUILT_FROM_SOURCE=true
