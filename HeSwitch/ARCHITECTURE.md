@@ -277,9 +277,41 @@ curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh |
 - **`v1.0.4` (Fix `add` / `שגג` & Developer Vocabulary):**
   - Solved `שגג` archaic Hebrew root collision by prioritizing `add`.
   - Added developer keywords (`app`, `run`, `log`, `fix`, `dev`, `api`, `url`, `cmd`, `init`, `save`, `load`).
-- **`v1.0.5` (Instant Backspace Undo & Markdown `.md` / `צג` Support):**
-  - Implemented **Instant Backspace Undo (`UndoLearner`)**: tapping Backspace immediately reverts auto-switched words, restores layout, and ignores the word for the session.
-  - Fixed `md` ↔ `צג` conversion and added smart extension boundary parsing for filenames (`README.צג` ➔ `README.md`).
+- **`v1.0.5` (Markdown `.md` / `צג` Support & Boundary Splitting):**
+  - Added `md` ↔ `צג` developer keyword conversion.
+  - Added smart extension boundary parsing for filenames (`README.צג` ➔ `README.md`).
+- **`v1.0.6` (Fix Backspace Blacklisting & Universal Extension Splitting):**
+  - **Removed session blacklisting (`sessionIgnoredWords`)**: Pressing Backspace by mistake or to delete trailing characters no longer disables transcoding for that word in the future.
+  - **Natural Backspace Passthrough**: Restored standard non-destructive Backspace behavior so normal editing is never hijacked.
+  - **Universal Terminal & Accessible Extension Support**: CLI / Terminal keystroke buffer now splits file extensions via `WordBoundary.extractFileExtension`, enabling `cat README.צג ` ➔ `cat README.md ` across all environments.
+- **`v1.0.7` (Capitalized English Transcoding, Smart Backspace & Selection Transcoder):**
+  - **Capitalized English Words on Hebrew Layout**: Converts words starting with Shift / uppercase Latin (`Wישא` ➔ `What`, `Hקךךם` ➔ `Hello`, `Pךקשדק` ➔ `Please`, `Hם׳` ➔ `How`, `Tישמלד` ➔ `Thanks`), preserving capitalization.
+  - **Smart Backspace (Option A)**: 1-Tap instant revert on auto-repair without any session blacklist. Words are never permanently blocked.
+  - **In-Place Selection Transcoder (Option 1 - `Cmd + Shift + X`)**: Highlight any sentence or paragraph in any macOS app (or Menu Bar item) to transcode between Hebrew and English in-place, preserving whitespace, punctuation, and layout.
+- **`v1.0.8` (Auto-Updater, Excluded Words List & Enhanced Settings):**
+  - **Auto-Updater (`AppUpdater.swift`)**: In-app GitHub release checker and 1-click update installer with automated download, extraction, quarantine clearing, and relaunch.
+  - **Excluded Words (Blacklist)**: Dedicated user list of words that HeSwitch will never convert under any circumstance (defaulting to `ls`, `cd`, `rm`, `cp`, `mv`, `ps`, etc.).
+  - **Running Applications Exclusions Picker**: Live "+ Add Running Application…" dropdown menu in Settings.
+  - **Configurable Backspace Behaviors**: Settings switch between 1-Tap Undo, Two-Stage Undo, and Disabled.
+  - **New Settings Architecture**: 6 structured tabs (General, Behavior, Shortcuts, Exclusions, Custom Words, Updates).
+- **`v1.0.9` (Robust Capitalized English & Acronyms):**
+  - Robust handling of English capitalized inputs typed in Hebrew layout (`״ישא` ➔ `What`).
+- **`v1.0.10` (Permission Self-Healing & Translocation Detection):**
+  - Added automated Gatekeeper quarantine stripping (`xattr -cr`) and TCC database reset routines.
+- **`v1.0.11` (Contextual Script Coherence):**
+  - Line-level context tracking: resolves ambiguous collisions based on dominant line language.
+- **`v1.0.12` (Language-Scoped Excluded Words):**
+  - Added tag syntax `[EN]`, `[HE]`, and `[ALL]` to customize word suppression per keyboard language.
+- **`v1.0.13` (Dedicated Settings Window Controller):**
+  - AppKit Edit menu integration and dedicated `SettingsWindowManager` presenting native SwiftUI settings.
+- **`v1.0.14` (Context-Aware Resolution for 'לפי' / 'kph'):**
+  - Contextual routing for `kph`: converts to `לפי` at sentence start or in Hebrew context, preserves `kph` after numbers or in English context.
+- **`v1.0.15` (Backspace Undo Persistence & 'fi' ↔ 'כן'):**
+  - Enhanced Smart Backspace undo persistence; added `fi` ↔ `כן` resolution.
+- **`v1.0.16` (Canonical Hybrid Installer, CLI Diagnostics & Apple Notes Rich Text):**
+  - **Canonical Default Update Flow**: `curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh | bash` established as the single, universal updater across both Terminal and in-app updates.
+  - **Apple Notes & Rich Text Fix**: Extracted text from `NSAttributedString` (used by `ICTextView` in Apple Notes) in `FocusedText.swift`, resolving missing conversions in rich text editors.
+  - **Command-Line Diagnostic Switches**: Added `--diagnose`, `--verbose` (live foreground event monitor), `--test`, `--convert <text>`, and `--reset-permissions`.
 
 ---
 
@@ -289,13 +321,13 @@ Analysis of reference applications (**Punto Switcher**, **Caramba Switcher**, **
 
 | Feature | Reference Source | Status | Purpose & Mechanism |
 | :--- | :--- | :---: | :--- |
-| **1. Backspace Instant Undo (`UndoLearner`)** | Punto, Caramba, Keyboop | **Implemented in v1.0.5** | Pressing Backspace within 2s of auto-repair reverts text, restores original keyboard layout, and adds word to session ignore list. |
-| **2. Selection Converter (`Cmd + Shift + X`)** | LangOver, Ne-To | Planned (Tier 1) | Select any paragraph or sentence, press shortcut to invert language in-place. |
+| **1. Smart Backspace (`Option A` / `Option B`)** | Punto, Caramba | **Implemented in v1.0.7 & v1.0.8** | Configurable 1-Tap or Two-Stage instant revert immediately after auto-repair with zero session blacklisting. |
+| **2. Selection Converter (`Cmd + Shift + X`)** | LangOver, Ne-To | **Implemented in v1.0.7** | Select any paragraph or sentence, press `⌘⇧X` to invert language in-place (with universal clipboard fallback). |
 | **3. Trackpad Haptic Feedback** | Ne-To | Planned (Tier 1) | Subtle `NSHapticFeedbackManager` tactile tap on trackpad when layout flips silently. |
 | **4. Spotlight / URL Bar Autocomplete Guard** | Keyboop | Planned (Tier 1) | Check `kAXSelectedTextAttribute` so backspace doesn't delete active autocompletions in Chrome/Safari/Spotlight. |
 | **5. Instant `Caps Lock` Toggle** | Caramba | Planned (Tier 2) | Tap `Caps Lock` for zero-lag language toggle without macOS HUD delay (holding 0.5s preserves uppercase lock). |
 | **6. BiDi Reversed Hebrew Fixer** | LangOver (ReverseIt) | Planned (Tier 2) | Inverts character order for Hebrew in non-RTL apps (Photoshop, CAD, subtitle editors) where `שלום` displays as `םולש`. |
 | **7. Dynamic Carbon `UCKeyTranslate`** | Keyboop | Planned (Tier 2) | Dynamically queries active layout map from macOS Carbon API to automatically support Hebrew - PC and phonetic layouts. |
 | **8. Native Vector Menu Bar Icon** | Native macOS | Planned (Tier 3) | Minimal dual-language template glyph (`A / א`) matching dark/light mode with live visual indicator. |
-| **9. In-App Auto-Update Checker** | Native / Sparkle | Planned (Tier 3) | GUI button in Settings checking GitHub API for seamless single-click update. |
+| **9. In-App Auto-Update Checker** | Native / Sparkle | **Implemented in v1.0.8** | 1-Click update check and seamless background installer via GitHub Releases API. |
 

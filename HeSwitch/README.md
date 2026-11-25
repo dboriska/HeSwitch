@@ -6,20 +6,20 @@ It runs 100% locally on your Mac, respects your clipboard, and uses macOS built-
 
 ---
 
-## ⚡ Quick Install & Auto-Update (One Command)
+## ⚡ Default Install & Update (Single Command)
 
-To install or automatically update HeSwitch to the latest version (with automatic quarantine clearing and permission reset):
+The standard and recommended way to install or update HeSwitch to the latest version:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh | bash
 ```
 
 This single command:
-1. Downloads the latest release from GitHub.
-2. Closes any running instance and installs into `/Applications/HeSwitch.app`.
-3. Clears macOS Gatekeeper quarantine (`xattr -cr`) to prevent App Translocation issues.
-4. Resets stale TCC accessibility caches (`tccutil reset Accessibility com.hebrew.HeSwitch`).
-5. Launches HeSwitch and opens System Settings directly to the Accessibility pane.
+1. **Adaptive Native Build & Fallback:** If Apple's Swift toolchain is present, it automatically compiles the latest version natively for your Mac (`arm64` Apple Silicon or `x86_64` Intel); otherwise, it downloads the latest pre-built release asset.
+2. **Safe In-Place Replacement:** Gracefully closes any running instance and installs directly into `/Applications/HeSwitch.app`.
+3. **Quarantine Stripping:** Clears macOS Gatekeeper quarantine (`xattr -cr`) to prevent App Translocation issues.
+4. **TCC Permission Refresh:** Resets stale Accessibility database records (`tccutil reset Accessibility com.hebrew.HeSwitch`) to eliminate the macOS "ghost permission" bug.
+5. **Instant Launch & Verification:** Launches HeSwitch immediately, opens System Settings if permissions need approval, and verifies the version.
 
 ---
 
@@ -103,6 +103,30 @@ cd HeSwitch
 bash Scripts/package-app.sh
 ```
 Move `dist/HeSwitch.app` to `/Applications` and launch it.
+
+---
+
+## 💻 Terminal / CLI Diagnostic Switches
+
+HeSwitch can be executed directly from Terminal to test, debug, and diagnose macOS permissions, keyboard layouts, and real-time keystroke processing:
+
+```sh
+# Comprehensive system diagnostic (checks Accessibility, Input Monitoring, SecureInput lock, and keyboard layouts)
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --diagnose
+
+# Live foreground monitor mode (logs keystrokes, active window/element, and decisions in real-time)
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --verbose
+
+# Run self-test suite on linguistic algorithms and dictionaries
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --test
+
+# Test an individual word or phrase conversion from command line
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --convert "akuo"
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --convert "יקךךם"
+
+# Reset stale TCC accessibility cache and remove quarantine
+/Applications/HeSwitch.app/Contents/MacOS/HeSwitch --reset-permissions
+```
 
 ---
 

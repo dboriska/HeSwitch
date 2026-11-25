@@ -31,6 +31,30 @@ public final class AppUpdater: ObservableObject {
         state = .checking
         Task {
             do {
+                // 1. Primary check: query raw install.sh from main branch for latest target version
+                let scriptURL = URL(string: "https://raw.githubusercontent.com/\(Self.repo)/main/install.sh")!
+                var scriptRequest = URLRequest(url: scriptURL)
+                scriptRequest.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+                scriptRequest.timeoutInterval = 8
+
+                if let (scriptData, scriptResp) = try? await URLSession.shared.data(for: scriptRequest),
+                   let httpResp = scriptResp as? HTTPURLResponse, httpResp.statusCode == 200,
+                   let scriptText = String(data: scriptData, encoding: .utf8) {
+                    if let range = scriptText.range(of: "TARGET_VERSION=\"([^\"]+)\"", options: .regularExpression) {
+                        let fullMatch = String(scriptText[range])
+                        let remoteVer = fullMatch.replacingOccurrences(of: "TARGET_VERSION=\"", with: "").replacingOccurrences(of: "\"", with: "")
+                        if isVersion(remoteVer, newerThan: Self.currentVersion) {
+                            self.state = .updateAvailable(
+                                version: remoteVer,
+                                downloadURL: scriptURL,
+                                releaseNotes: "Automated update via official installer script."
+                            )
+                            return
+                        }
+                    }
+                }
+
+                // 2. Secondary check: GitHub Releases API
                 guard let apiURL = URL(string: "https://api.github.com/repos/\(Self.repo)/releases/latest") else {
                     if !silent { state = .error("Invalid update URL") } else { state = .idle }
                     return
@@ -42,18 +66,13 @@ public final class AppUpdater: ObservableObject {
 
                 let (data, response) = try await URLSession.shared.data(for: request)
                 guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                    if !silent {
-                        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-                        state = .error("Could not reach update server (HTTP \(code))")
-                    } else {
-                        state = .idle
-                    }
+                    if !silent { self.state = .upToDate(version: Self.currentVersion) } else { state = .idle }
                     return
                 }
 
                 guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let tagName = json["tag_name"] as? String else {
-                    if !silent { state = .error("Malformed release data") } else { state = .idle }
+                    self.state = .upToDate(version: Self.currentVersion)
                     return
                 }
 
@@ -71,8 +90,8 @@ public final class AppUpdater: ObservableObject {
                     }
                 }
 
-                if isVersion(tagName, newerThan: Self.currentVersion), let downloadURL {
-                    self.state = .updateAvailable(version: tagName, downloadURL: downloadURL, releaseNotes: releaseNotes)
+                if isVersion(tagName, newerThan: Self.currentVersion) {
+                    self.state = .updateAvailable(version: tagName, downloadURL: downloadURL ?? scriptURL, releaseNotes: releaseNotes)
                 } else {
                     self.state = .upToDate(version: Self.currentVersion)
                 }
@@ -90,40 +109,13 @@ public final class AppUpdater: ObservableObject {
         state = .downloading(progress: 0.1)
         Task {
             do {
-                let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let zipFile = tempDir.appendingPathComponent("HeSwitch.zip")
-
-                state = .downloading(progress: 0.4)
-                let (downloadedURL, _) = try await URLSession.shared.download(from: downloadURL)
-                try FileManager.default.moveItem(at: downloadedURL, to: zipFile)
-
                 state = .installing
 
-                // Unzip downloaded archive
-                let unzipProc = Process()
-                unzipProc.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-                unzipProc.arguments = ["-q", "-o", zipFile.path, "-d", tempDir.path]
-                try unzipProc.run()
-                unzipProc.waitUntilExit()
-
-                let extractedApp = tempDir.appendingPathComponent("HeSwitch.app")
-                guard FileManager.default.fileExists(atPath: extractedApp.path) else {
-                    state = .error("Extracted archive did not contain HeSwitch.app")
-                    return
-                }
-
-                // Asynchronous update helper: waits for current process to exit,
-                // replaces /Applications/HeSwitch.app using ditto (preserving code signature metadata and permissions),
-                // strips quarantine flag, and launches the updated version.
+                // Default canonical update mechanism: executes automated installer script
                 let updateScript = """
                 sleep 0.8
-                rm -rf /Applications/HeSwitch.app
-                /usr/bin/ditto "\(extractedApp.path)" /Applications/HeSwitch.app
-                /usr/bin/xattr -cr /Applications/HeSwitch.app
-                open /Applications/HeSwitch.app
+                curl -fsSL https://raw.githubusercontent.com/\(Self.repo)/main/install.sh | bash
                 """
-
                 let updateProc = Process()
                 updateProc.executableURL = URL(fileURLWithPath: "/bin/bash")
                 updateProc.arguments = ["-c", updateScript]

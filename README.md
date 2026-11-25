@@ -6,20 +6,20 @@ It runs 100% locally on your Mac, respects your clipboard, and uses macOS built-
 
 ---
 
-## ⚡ Quick Install & Auto-Update (One Command)
+## ⚡ Default Install & Update (Single Command)
 
-To install or automatically update HeSwitch to the latest version (with automatic quarantine clearing and permission reset):
+The standard and recommended way to install or update HeSwitch to the latest version:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh | bash
 ```
 
 This single command:
-1. Downloads the latest release from GitHub.
-2. Closes any running instance and installs into `/Applications/HeSwitch.app`.
-3. Clears macOS Gatekeeper quarantine (`xattr -cr`) to prevent App Translocation issues.
-4. Resets stale TCC accessibility caches (`tccutil reset Accessibility com.hebrew.HeSwitch`).
-5. Launches HeSwitch and opens System Settings directly to the Accessibility pane.
+1. **Adaptive Native Build & Fallback:** If Apple's Swift toolchain is present, it automatically compiles the latest version natively for your Mac (`arm64` Apple Silicon or `x86_64` Intel); otherwise, it downloads the latest pre-built release asset.
+2. **Safe In-Place Replacement:** Gracefully closes any running instance and installs directly into `/Applications/HeSwitch.app`.
+3. **Quarantine Stripping:** Clears macOS Gatekeeper quarantine (`xattr -cr`) to prevent App Translocation issues.
+4. **TCC Permission Refresh:** Resets stale Accessibility database records (`tccutil reset Accessibility com.hebrew.HeSwitch`) to eliminate the macOS "ghost permission" bug.
+5. **Instant Launch & Verification:** Launches HeSwitch immediately, opens System Settings if permissions need approval, and verifies the version.
 
 ---
 

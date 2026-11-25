@@ -294,6 +294,24 @@ curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh |
   - **Running Applications Exclusions Picker**: Live "+ Add Running Application…" dropdown menu in Settings.
   - **Configurable Backspace Behaviors**: Settings switch between 1-Tap Undo, Two-Stage Undo, and Disabled.
   - **New Settings Architecture**: 6 structured tabs (General, Behavior, Shortcuts, Exclusions, Custom Words, Updates).
+- **`v1.0.9` (Robust Capitalized English & Acronyms):**
+  - Robust handling of English capitalized inputs typed in Hebrew layout (`״ישא` ➔ `What`).
+- **`v1.0.10` (Permission Self-Healing & Translocation Detection):**
+  - Added automated Gatekeeper quarantine stripping (`xattr -cr`) and TCC database reset routines.
+- **`v1.0.11` (Contextual Script Coherence):**
+  - Line-level context tracking: resolves ambiguous collisions based on dominant line language.
+- **`v1.0.12` (Language-Scoped Excluded Words):**
+  - Added tag syntax `[EN]`, `[HE]`, and `[ALL]` to customize word suppression per keyboard language.
+- **`v1.0.13` (Dedicated Settings Window Controller):**
+  - AppKit Edit menu integration and dedicated `SettingsWindowManager` presenting native SwiftUI settings.
+- **`v1.0.14` (Context-Aware Resolution for 'לפי' / 'kph'):**
+  - Contextual routing for `kph`: converts to `לפי` at sentence start or in Hebrew context, preserves `kph` after numbers or in English context.
+- **`v1.0.15` (Backspace Undo Persistence & 'fi' ↔ 'כן'):**
+  - Enhanced Smart Backspace undo persistence; added `fi` ↔ `כן` resolution.
+- **`v1.0.16` (Canonical Hybrid Installer, CLI Diagnostics & Apple Notes Rich Text):**
+  - **Canonical Default Update Flow**: `curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh | bash` established as the single, universal updater across both Terminal and in-app updates.
+  - **Apple Notes & Rich Text Fix**: Extracted text from `NSAttributedString` (used by `ICTextView` in Apple Notes) in `FocusedText.swift`, resolving missing conversions in rich text editors.
+  - **Command-Line Diagnostic Switches**: Added `--diagnose`, `--verbose` (live foreground event monitor), `--test`, `--convert <text>`, and `--reset-permissions`.
 
 ---
 

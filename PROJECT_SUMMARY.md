@@ -435,6 +435,17 @@ uv run python test_huge_vocabulary.py 2000
 3. **Electron & Chromium Accessibility Sleeping:**
    - Chrome, Slack, Discord, and VS Code do not maintain live AX trees unless requested.
    - `FocusedText.swift` explicitly sets `AXManualAccessibility = true` on the focused application to wake up the tree.
-4. **AppKit Key Window in Menu Bar (`LSUIElement`) Apps:**
-   - Calling standard `NSApp.sendAction(#selector(NSApplication.showSettingsWindow:), to: nil, from: nil)` fails silently in `LSUIElement` apps.
-   - Must use `SettingsWindowManager.swift` with an explicit `NSWindow` and a manually synthesized `NSMenu` containing standard `Edit` items (`Cmd+C`, `Cmd+V`, `Cmd+A`).
+5. **Canonical Hybrid Installer & Updater Architecture (`install.sh`):**
+   - The default, standard way to install or update HeSwitch across both command line and the in-app updater is:
+     `curl -fsSL https://raw.githubusercontent.com/dboriska/HeSwitch/main/install.sh | bash`
+   - It performs an adaptive installation: automatically building natively from source if `swift` is present, or falling back to pre-built GitHub Releases if swift is absent.
+   - Clears quarantine flags (`xattr -cr`), resets stale TCC cache (`tccutil reset Accessibility com.hebrew.HeSwitch`), and restarts the app.
+6. **Command-Line Diagnostic Switches (`CLIHandler.swift`):**
+   - Direct execution from Terminal via `/Applications/HeSwitch.app/Contents/MacOS/HeSwitch`:
+     - `--diagnose`: Automated health check on macOS Accessibility, Input Monitoring, SecureInput lock, and keyboard layouts.
+     - `--verbose`: Live interactive foreground monitor logging every key press, buffer state, and layout switch.
+     - `--test`: Embedded unit test harness validating language conversions.
+     - `--convert <text>`: Command-line string transcoding.
+     - `--reset-permissions`: Self-healing permission reset.
+7. **Apple Notes Rich Text (`ICTextView`) Handling:**
+   - Apple Notes exposes text via `NSAttributedString` rather than plain `String` on `kAXValueAttribute`. `FocusedText.swift` extracts string values from both types, ensuring reliable detection in rich text editors.
