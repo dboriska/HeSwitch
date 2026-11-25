@@ -248,7 +248,7 @@ public enum CLIHandler {
         let collisions = ["to", "do", "go", "so"]
         var collisionPassed = 0
         for word in collisions {
-            if AmbiguousCollisions.isAmbiguous(word) {
+            if AmbiguousCollisions.isAmbiguousCollision(word) {
                 collisionPassed += 1
             }
         }

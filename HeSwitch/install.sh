@@ -21,26 +21,24 @@ SOURCE_APP=""
 # 1. Prefer building latest target version from source if swift compiler is available
 if command -v swift >/dev/null 2>&1; then
     echo "==> [HeSwitch] Swift toolchain detected ($(swift --version | head -n 1)). Building ${TARGET_VERSION} from source..."
-    if git clone --depth=1 "https://github.com/${REPO}.git" "${TMP_DIR}/repo"; then
-        cd "${TMP_DIR}/repo/HeSwitch"
-        if bash Scripts/package-app.sh; then
-            CANDIDATE_APP="${TMP_DIR}/repo/HeSwitch/dist/${APP_NAME}"
-            if [[ -d "${CANDIDATE_APP}" ]]; then
-                BUILT_FROM_SOURCE=true
-                SOURCE_APP="${CANDIDATE_APP}"
-                echo "==> [HeSwitch] Local build succeeded."
+    git clone --depth=1 "https://github.com/${REPO}.git" "${TMP_DIR}/repo"
+    cd "${TMP_DIR}/repo/HeSwitch"
+    bash Scripts/package-app.sh
+    CANDIDATE_APP="${TMP_DIR}/repo/HeSwitch/dist/${APP_NAME}"
+    if [[ -d "${CANDIDATE_APP}" ]]; then
+        BUILT_FROM_SOURCE=true
+        SOURCE_APP="${CANDIDATE_APP}"
+        echo "==> [HeSwitch] Local build succeeded."
 
-                # If gh CLI is authenticated, publish release asset to GitHub in background
-                if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-                    (
-                        cd "${TMP_DIR}/repo/HeSwitch/dist"
-                        zip -q -r HeSwitch-macOS.zip "${APP_NAME}"
-                        gh release create "${TARGET_VERSION}" HeSwitch-macOS.zip \
-                            --title "HeSwitch ${TARGET_VERSION}" \
-                            --notes "CLI diagnostic switches, live foreground monitor mode, rich text support for Apple Notes" >/dev/null 2>&1 || true
-                    ) &
-                fi
-            fi
+        # If gh CLI is authenticated, publish release asset to GitHub in background
+        if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+            (
+                cd "${TMP_DIR}/repo/HeSwitch/dist"
+                zip -q -r HeSwitch-macOS.zip "${APP_NAME}"
+                gh release create "${TARGET_VERSION}" HeSwitch-macOS.zip \
+                    --title "HeSwitch ${TARGET_VERSION}" \
+                    --notes "CLI diagnostic switches, live foreground monitor mode, rich text support for Apple Notes" >/dev/null 2>&1 || true
+            ) &
         fi
     fi
 fi
